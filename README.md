@@ -4,8 +4,8 @@ A two-role learning platform for agriculture competitive exams. Admins publish
 articles, YouTube lessons and MCQ quizzes organised by exam and topic; learners
 read, watch, attempt, like, comment and assemble their own learning paths.
 
-**Status: phases 1–2 of 8 complete** — skeleton, database, and full email/password
-plus Google authentication. No learning content yet.
+**Status: phases 1–3 of 8 complete** — skeleton, database, authentication, and the
+exam/topic taxonomy with its admin screens. No learning content yet.
 
 ## Stack
 
@@ -64,6 +64,27 @@ npm run dev
 
 Serves <http://localhost:3000>.
 
+## Making yourself an admin
+
+There is deliberately no public route to becoming an admin, and a Flyway seed
+cannot do it either without hard-coding an email address into version control.
+Instead, list the addresses in configuration:
+
+1. Sign up normally through the app.
+2. Add the address to `application-local.yml` (or set `APP_BOOTSTRAP_ADMIN_EMAILS`
+   in production):
+
+   ```yaml
+   app:
+     bootstrap-admin-emails: you@example.com
+   ```
+
+3. Restart the API. It logs `Promoted you@example.com to ADMIN`, and an **Admin**
+   link appears in the header.
+
+The account must exist first — promoting an unknown address logs a warning and
+does nothing.
+
 ## Google sign-in (optional)
 
 Sign-in with Google switches itself on only when credentials are present, so the
@@ -113,6 +134,12 @@ application starts fine without them. To enable it:
 | POST   | `/api/v1/auth/logout`    | cookie | 204, revokes and clears the cookie     |
 | GET    | `/api/v1/users/me`       | user   | Live profile row, not the token claims |
 | PATCH  | `/api/v1/users/me`       | user   | Name and avatar                        |
+| GET    | `/api/v1/exams`          | public | With topic counts                      |
+| GET    | `/api/v1/exams/{slug}`   | public | Includes the syllabus tree             |
+| GET    | `/api/v1/topics`         | public | The whole topic forest                 |
+| POST   | `/api/v1/admin/exams`    | admin  | Also PUT and DELETE by id              |
+| PUT    | `/api/v1/admin/exams/{id}/topics` | admin | Replaces the whole topic set  |
+| POST   | `/api/v1/admin/topics`   | admin  | Also PUT and DELETE by id              |
 
 ## Layout
 
@@ -123,9 +150,11 @@ backend/            Spring Boot API
     common/         ApiError, exception handlers, JSON 401 / 403
     auth/           AuthService, controller, refresh tokens, JWT, OAuth2
     user/           User entity, roles, profile endpoints
+    catalog/        Exams, the topic tree, and the admin CRUD behind them
     health/         HealthController
   src/main/resources/db/migration/   Flyway migrations
   scripts/auth_smoke.py              End-to-end auth check
+  scripts/catalog_smoke.py           End-to-end taxonomy check
   Dockerfile        Multi-stage build used by Railway
 frontend/           Next.js app
   src/app/          App Router pages
@@ -147,5 +176,25 @@ frontend/           Next.js app
 ```
 cd backend
 ./mvnw test                  # unit and slice tests
-python scripts/auth_smoke.py # end-to-end, needs the API running
+python scripts/auth_smoke.py     # end-to-end auth, needs the API running
+python scripts/catalog_smoke.py  # end-to-end taxonomy, needs an admin account
 ```
+
+## How the taxonomy works
+
+Topics form a tree (Agronomy > Soil Science > Soil Fertility). Exams are syllabuses
+that draw on that shared pool, so **one topic can belong to any number of exams**
+without being duplicated — `exam_topics` is a many-to-many join, and removing a
+topic from one exam leaves the others untouched.
+
+Three rules the server enforces, because none of them can be left to the UI:
+
+- A topic cannot be moved beneath its own descendant. The service walks the
+  ancestor chain first; a cycle would make the tree builder recurse forever.
+- Deleting a topic that still has children is refused with a 409. The foreign key
+  would happily cascade and take the whole branch with it, which an admin cannot undo.
+- Setting an exam's topics replaces the entire set rather than applying a delta,
+  so repeating the call changes nothing.
+
+A syllabus may include a sub-topic without its parent. Those are promoted to roots
+when the tree is assembled, rather than being dropped and silently hidden.

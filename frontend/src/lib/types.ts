@@ -43,3 +43,36 @@ export type ApiErrorBody = {
   message: string;
   path: string;
 };
+
+/** Mirrors catalog/dto/TopicNode.java. Children is empty, never null, at a leaf. */
+export type TopicNode = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  displayOrder: number;
+  parentId: number | null;
+  children: TopicNode[];
+};
+
+/** Mirrors catalog/dto/ExamSummary.java. */
+export type ExamSummary = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  iconUrl: string | null;
+  displayOrder: number;
+  topicCount: number;
+};
+
+/** Mirrors catalog/dto/ExamDetail.java. */
+export type ExamDetail = {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  iconUrl: string | null;
+  displayOrder: number;
+  syllabus: TopicNode[];
+};

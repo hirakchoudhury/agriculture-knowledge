@@ -78,6 +78,10 @@ public class SecurityConfig {
 						.requestMatchers("/api/v1/health").permitAll()
 						.requestMatchers("/actuator/health/**").permitAll()
 						.requestMatchers("/api/v1/auth/**").permitAll()
+						// Browsing the syllabus is the shop window: readable signed out.
+						// Note these are GET-only, and /api/v1/admin/** is not included.
+						.requestMatchers(HttpMethod.GET, "/api/v1/exams", "/api/v1/exams/**",
+								"/api/v1/topics", "/api/v1/topics/**").permitAll()
 						// Google redirects land on these two, before any session exists.
 						.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 						.anyRequest().authenticated())

@@ -38,6 +38,10 @@ app:
   # Comma-separated. Used for Vercel preview deployments, which each get their own URL.
   extra-allowed-origins: ${APP_EXTRA_ALLOWED_ORIGINS:}
 
+  # Comma-separated emails promoted to ADMIN on startup. The account must already
+  # exist — sign up first, then restart. There is no public route to becoming admin.
+  bootstrap-admin-emails: ${APP_BOOTSTRAP_ADMIN_EMAILS:}
+
   jwt:
     # Base64-encoded, at least 32 bytes. Generate with: openssl rand -base64 32
     secret: ${APP_JWT_SECRET:}

@@ -131,6 +131,14 @@ public class User {
 		return role;
 	}
 
+	/**
+	 * Only reachable from {@link com.agriknowledge.config.AdminBootstrap}. There is
+	 * deliberately no endpoint that changes a role.
+	 */
+	public void setRole(Role role) {
+		this.role = role;
+	}
+
 	public AuthProvider getProvider() {
 		return provider;
 	}

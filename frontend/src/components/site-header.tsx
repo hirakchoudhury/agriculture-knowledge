@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export function SiteHeader() {
-  const { user, status, logout } = useAuth();
+  const { user, status, isAdmin, logout } = useAuth();
   const router = useRouter();
 
   async function handleSignOut() {
@@ -15,10 +15,20 @@ export function SiteHeader() {
 
   return (
     <header className="border-b border-line">
-      <nav className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-6 py-4">
-        <Link href="/" className="font-semibold tracking-tight hover:text-accent">
-          Agriculture Knowledge
-        </Link>
+      <nav className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+        <div className="flex items-baseline gap-5">
+          <Link href="/" className="font-semibold tracking-tight hover:text-accent">
+            Agriculture Knowledge
+          </Link>
+          <Link href="/exams" className="text-sm text-muted hover:text-foreground">
+            Exams
+          </Link>
+          {isAdmin && (
+            <Link href="/admin/exams" className="text-sm text-muted hover:text-foreground">
+              Admin
+            </Link>
+          )}
+        </div>
 
         <div className="flex items-center gap-4 text-sm">
           {status === "loading" && <span className="text-muted">Checking session…</span>}
