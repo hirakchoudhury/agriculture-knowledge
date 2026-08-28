@@ -1,0 +1,19 @@
+# Copy to application-local.yml (gitignored) and fill in your own values.
+#
+#   cp application-local.yml.example application-local.yml
+#
+# The Neon dashboard gives you a URL shaped like
+#   postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
+# which splits into the three properties below. Note the jdbc: prefix —
+# Spring cannot parse the postgresql:// form directly.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://HOST/DATABASE?sslmode=require
+    username: USER
+    password: PASSWORD
+
+app:
+  jwt:
+    # openssl rand -base64 32
+    secret: REPLACE_WITH_A_BASE64_SECRET
