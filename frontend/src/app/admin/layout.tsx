@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 const TABS = [
+  { href: "/admin/materials", label: "Material" },
   { href: "/admin/exams", label: "Exams" },
   { href: "/admin/topics", label: "Topics" },
 ];

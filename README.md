@@ -4,8 +4,9 @@ A two-role learning platform for agriculture competitive exams. Admins publish
 articles, YouTube lessons and MCQ quizzes organised by exam and topic; learners
 read, watch, attempt, like, comment and assemble their own learning paths.
 
-**Status: phases 1–3 of 8 complete** — skeleton, database, authentication, and the
-exam/topic taxonomy with its admin screens. No learning content yet.
+**Status: phases 1–4 of 8 complete** — skeleton, database, authentication, the
+exam/topic taxonomy, and articles and video lessons with a draft/publish workflow.
+Likes, comments and quizzes are still to come.
 
 ## Stack
 
@@ -140,6 +141,12 @@ application starts fine without them. To enable it:
 | POST   | `/api/v1/admin/exams`    | admin  | Also PUT and DELETE by id              |
 | PUT    | `/api/v1/admin/exams/{id}/topics` | admin | Replaces the whole topic set  |
 | POST   | `/api/v1/admin/topics`   | admin  | Also PUT and DELETE by id              |
+| GET    | `/api/v1/materials`      | public | Filter by type, difficulty, topic, exam, `q` |
+| GET    | `/api/v1/materials/{slug}` | public | Drafts are 404 unless you are an admin |
+| GET    | `/api/v1/admin/materials` | admin | Includes drafts and archived           |
+| POST   | `/api/v1/admin/materials/articles` | admin | Also PUT by id                |
+| POST   | `/api/v1/admin/materials/videos`   | admin | Also PUT by id                |
+| PATCH  | `/api/v1/admin/materials/{id}/status` | admin | Publish, unpublish, archive |
 
 ## Layout
 
@@ -151,10 +158,12 @@ backend/            Spring Boot API
     auth/           AuthService, controller, refresh tokens, JWT, OAuth2
     user/           User entity, roles, profile endpoints
     catalog/        Exams, the topic tree, and the admin CRUD behind them
+    material/       Articles and videos, tagging, publishing, HTML sanitising
     health/         HealthController
   src/main/resources/db/migration/   Flyway migrations
   scripts/auth_smoke.py              End-to-end auth check
   scripts/catalog_smoke.py           End-to-end taxonomy check
+  scripts/materials_smoke.py         End-to-end article and video check
   Dockerfile        Multi-stage build used by Railway
 frontend/           Next.js app
   src/app/          App Router pages
@@ -177,8 +186,36 @@ frontend/           Next.js app
 cd backend
 ./mvnw test                  # unit and slice tests
 python scripts/auth_smoke.py     # end-to-end auth, needs the API running
-python scripts/catalog_smoke.py  # end-to-end taxonomy, needs an admin account
+python scripts/catalog_smoke.py   # end-to-end taxonomy, needs an admin account
+python scripts/materials_smoke.py # end-to-end material, needs an admin account
 ```
+
+Each smoke script archives the material it creates, so running them does not leave
+test rows on the public library page.
+
+## How material works
+
+Articles, videos and (from phase 6) quizzes share one `materials` row plus a
+type-specific table — JPA's JOINED inheritance. A mixed feed is therefore one
+query, while each type keeps its own columns instead of a pile of nullable ones.
+
+- **Everything is created as a DRAFT.** Publishing is a separate, deliberate step.
+  A draft returns 404 to everyone except an admin, rather than 403, so an
+  unpublished slug cannot be probed for existence.
+- **Publishing stamps the date only once.** Archiving and re-publishing keeps the
+  original date, so the feed does not reshuffle.
+- **Nothing is hard-deleted.** Archive withdraws material from the site; comments,
+  likes and progress from later phases all reference these rows.
+- **Article HTML is sanitised on write** against the OWASP allow-list. What is
+  stored is already safe, so no reader depends on the frontend escaping correctly.
+  The editor's toolbar is convenience, never a security boundary.
+- **Only the YouTube video id is stored.** Watch, `youtu.be`, embed, shorts, live
+  and mobile URLs — with playlists or timestamps attached — all collapse to the
+  same 11 characters, and the frontend builds a `youtube-nocookie` embed from it.
+- **Slugs never change on rename**, because they are already in published URLs.
+- **Sorting is restricted to a known list** (`newest`, `oldest`, `popular`,
+  `liked`) rather than passed through to JPA, so a client cannot sort by arbitrary
+  columns or probe the schema through error messages.
 
 ## How the taxonomy works
 

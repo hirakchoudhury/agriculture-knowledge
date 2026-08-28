@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -28,6 +29,23 @@ public class GlobalExceptionHandler {
 				.map(error -> "%s: %s".formatted(error.getField(), error.getDefaultMessage()))
 				.collect(Collectors.joining("; "));
 		return respond(HttpStatus.BAD_REQUEST, detail.isBlank() ? "Request was not valid" : detail, request);
+	}
+
+	@ExceptionHandler(BadRequestException.class)
+	ResponseEntity<ApiError> onBadRequest(BadRequestException ex, HttpServletRequest request) {
+		return respond(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	/**
+	 * Anything Spring itself raises with a status attached — an unreadable body, an
+	 * unsupported media type. Without this the catch-all below would swallow the
+	 * intended status and report 500.
+	 */
+	@ExceptionHandler(ErrorResponseException.class)
+	ResponseEntity<ApiError> onErrorResponse(ErrorResponseException ex, HttpServletRequest request) {
+		HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+		String detail = ex.getBody().getDetail();
+		return respond(status, detail != null ? detail : status.getReasonPhrase(), request);
 	}
 
 	@ExceptionHandler(ConflictException.class)

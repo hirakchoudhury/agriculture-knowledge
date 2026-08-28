@@ -71,6 +71,17 @@
 			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
 		</dependency>
 
+		<!--
+		  Admin-authored article HTML is sanitised before it is stored. Admins are
+		  trusted, but stored XSS is the one bug in this app that would run in every
+		  reader's browser, so the content passes through an allow-list either way.
+		-->
+		<dependency>
+			<groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+			<artifactId>owasp-java-html-sanitizer</artifactId>
+			<version>20240325.1</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>

@@ -76,3 +76,64 @@ export type ExamDetail = {
   displayOrder: number;
   syllabus: TopicNode[];
 };
+
+export type MaterialType = "ARTICLE" | "VIDEO" | "QUIZ";
+export type MaterialStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+export type Difficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+
+/** Mirrors common/PageResponse.java. */
+export type PageResponse<T> = {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+};
+
+/** Mirrors material/dto/MaterialSummary.java. Card view; no article body. */
+export type MaterialSummary = {
+  id: number;
+  type: MaterialType;
+  title: string;
+  slug: string;
+  summary: string | null;
+  thumbnailUrl: string | null;
+  difficulty: Difficulty;
+  status: MaterialStatus;
+  publishedAt: string | null;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  topicNames: string[];
+};
+
+export type TagRef = { id: number; name: string; slug: string };
+
+/**
+ * Mirrors material/dto/MaterialDetail.java. One shape for every type: bodyHtml and
+ * readingMinutes are set for ARTICLE, youtubeId and durationSeconds for VIDEO.
+ */
+export type MaterialDetail = {
+  id: number;
+  type: MaterialType;
+  title: string;
+  slug: string;
+  summary: string | null;
+  thumbnailUrl: string | null;
+  difficulty: Difficulty;
+  status: MaterialStatus;
+  authorName: string;
+  publishedAt: string | null;
+  updatedAt: string;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  topics: TagRef[];
+  exams: TagRef[];
+  bodyHtml: string | null;
+  readingMinutes: number | null;
+  youtubeId: string | null;
+  durationSeconds: number | null;
+};

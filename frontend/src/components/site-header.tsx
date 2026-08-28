@@ -20,11 +20,14 @@ export function SiteHeader() {
           <Link href="/" className="font-semibold tracking-tight hover:text-accent">
             Agriculture Knowledge
           </Link>
+          <Link href="/materials" className="text-sm text-muted hover:text-foreground">
+            Library
+          </Link>
           <Link href="/exams" className="text-sm text-muted hover:text-foreground">
             Exams
           </Link>
           {isAdmin && (
-            <Link href="/admin/exams" className="text-sm text-muted hover:text-foreground">
+            <Link href="/admin/materials" className="text-sm text-muted hover:text-foreground">
               Admin
             </Link>
           )}
