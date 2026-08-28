@@ -1,0 +1,27 @@
+# --- secrets -----------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- java / maven ------------------------------------------------------------
+target/
+!.mvn/wrapper/maven-wrapper.properties
+*.jar
+!**/src/main/**/*.jar
+*.log
+
+# --- node / next -------------------------------------------------------------
+node_modules/
+.next/
+out/
+build/
+.vercel
+next-env.d.ts
+*.tsbuildinfo
+
+# --- editors and os ----------------------------------------------------------
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

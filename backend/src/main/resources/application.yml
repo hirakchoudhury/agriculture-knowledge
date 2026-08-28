@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: agriculture-knowledge-api
+
+server:
+  # Railway injects PORT. Without this the container starts, listens on the wrong
+  # port, fails its health check and gets killed — the classic first-deploy failure.
+  port: ${PORT:8080}
+  shutdown: graceful
+
+app:
+  version: @project.version@
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
+  # Comma-separated. Used for Vercel preview deployments, which each get their own URL.
+  extra-allowed-origins: ${APP_EXTRA_ALLOWED_ORIGINS:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.agriknowledge: DEBUG

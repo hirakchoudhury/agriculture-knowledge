@@ -1,0 +1,10 @@
+# Active on Railway via SPRING_PROFILES_ACTIVE=prod.
+server:
+  # Railway terminates TLS at its proxy. Without this, Spring builds redirect URLs
+  # with http:// and the OAuth2 flow added in phase 2 breaks in production only.
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    root: INFO
+    com.agriknowledge: INFO

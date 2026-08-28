@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java -version)",
+      "Bash(mvn -version)",
+      "Bash(npm --version)",
+      "Bash(git --version)",
+      "Bash(docker --version)",
+      "PowerShell(Write-Output \"JAVA_HOME: $env:JAVA_HOME\"; Write-Output \"--- java on PATH ---\"; \\(Get-Command java -ErrorAction SilentlyContinue\\).Source; Write-Output \"--- JDK dirs ---\"; foreach \\($p in @\\(\"C:\\\\Program Files\\\\Java\",\"C:\\\\Program Files\\\\Eclipse Adoptium\",\"C:\\\\Program Files\\\\Microsoft\",\"C:\\\\Program Files\\\\Amazon Corretto\",\"C:\\\\Program Files \\(x86\\)\\\\Java\"\\)\\) { if \\(Test-Path $p\\) { Get-ChildItem $p -Directory | ForEach-Object { $_.FullName } } })",
+      "PowerShell(Write-Output \"--- node ---\"; \\(Get-Command node\\).Source; node --version; Write-Output \"--- nvm? ---\"; \\(Get-Command nvm -ErrorAction SilentlyContinue\\).Source; Write-Output \"--- winget ---\"; \\(Get-Command winget -ErrorAction SilentlyContinue\\).Source)",
+      "PowerShell(winget install --id EclipseAdoptium.Temurin.21.JDK --exact --silent --accept-package-agreements --accept-source-agreements; Write-Output \"=== JDK exit: $LASTEXITCODE ===\"; winget install --id OpenJS.NodeJS.LTS --exact --silent --accept-package-agreements --accept-source-agreements; Write-Output \"=== NODE exit: $LASTEXITCODE ===\")",
+      "PowerShell($machine = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\); $user = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); $env:Path = \"$machine;$user\"; Write-Output \"--- java ---\"; & java -version; Write-Output \"--- javac ---\"; & javac -version; Write-Output \"--- node ---\"; & node --version; Write-Output \"--- npm ---\"; & npm --version; Write-Output \"--- JAVA_HOME \\(machine\\) ---\"; [System.Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\",\"Machine\"\\); Write-Output \"--- JAVA_HOME \\(user\\) ---\"; [System.Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\",\"User\"\\))",
+      "PowerShell($jdk = \"C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-21.0.12.101-hotspot\"; [System.Environment]::SetEnvironmentVariable\\(\"JAVA_HOME\", $jdk, \"User\"\\); Write-Output \"user JAVA_HOME now: $\\([System.Environment]::GetEnvironmentVariable\\('JAVA_HOME','User'\\)\\)\"; Write-Output \"--- npm resolves to ---\"; \\(Get-Command npm\\).Source; Write-Output \"--- installing maven ---\"; winget install --id Apache.Maven --exact --silent --accept-package-agreements --accept-source-agreements; Write-Output \"=== MAVEN exit: $LASTEXITCODE ===\")",
+      "PowerShell(winget search maven 2>&1)",
+      "PowerShell($m = [Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\); $u = [Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); $env:Path = \"$m;$u\"; $env:JAVA_HOME = [Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\",\"Machine\"\\); Set-Location \"C:\\\\Users\\\\ASUS\\\\OneDrive\\\\Desktop\\\\Project\\\\Blog Site\\\\backend\"; & .\\\\mvnw.cmd -B clean package; Write-Output \"=== MAVEN BUILD EXIT: $LASTEXITCODE ===\")"
+    ]
+  }
+}
