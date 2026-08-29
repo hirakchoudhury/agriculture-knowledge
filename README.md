@@ -331,6 +331,107 @@ a handful of sign-ups an hour is normal traffic rather than an attack. A correct
 password clears the login allowance, so someone who mistypes and then succeeds is
 not left throttled.
 
+## Deploying
+
+The API runs on Railway from the Dockerfile, the frontend on Vercel, and the
+database stays on Neon. Nothing is stored on the API container's disk — Railway's
+filesystem is ephemeral and resets on every deploy.
+
+**Order matters.** The API needs to know the frontend's URL for CORS, and the
+frontend needs to know the API's URL, so deploy the API first with a placeholder
+and come back to it.
+
+### 1. Generate a production JWT secret
+
+Do not reuse the local one.
+
+```bash
+openssl rand -base64 32
+```
+
+Keep the output to hand; it goes into Railway in the next step and nowhere else.
+
+### 2. The API on Railway
+
+1. New project → **Deploy from GitHub repo** → pick `agriculture-knowledge`.
+2. In the service settings, set **Root Directory** to `backend`. Railway then
+   finds the Dockerfile and `railway.json` on its own.
+3. Add these variables:
+
+| Variable | Value |
+| -------- | ----- |
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://YOUR-NEON-HOST/neondb?sslmode=require` |
+| `SPRING_DATASOURCE_USERNAME` | your Neon user |
+| `SPRING_DATASOURCE_PASSWORD` | your Neon password |
+| `APP_JWT_SECRET` | the secret from step 1 |
+| `APP_FRONTEND_URL` | `http://localhost:3000` for now — corrected in step 4 |
+| `APP_BOOTSTRAP_ADMIN_EMAILS` | the email you will sign up with |
+| `JAVA_TOOL_OPTIONS` | `-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k` |
+
+   Take the Neon values from the connection string, dropping `channel_binding`
+   and prefixing the host with `jdbc:postgresql://`. Note this differs from the
+   original plan, which assumed Railway's own Postgres and its reference
+   variables — you are pointing at Neon instead, so paste the values directly.
+
+   `JAVA_TOOL_OPTIONS` matters more than it looks: without a heap cap the JVM
+   sizes itself against the host's memory, not the container's, and gets killed.
+
+4. Settings → Networking → **Generate Domain**. Note the
+   `https://something.up.railway.app` address.
+5. Check it: `https://your-api.up.railway.app/api/v1/health` should return JSON.
+   Flyway runs all eight migrations on first boot.
+
+### 3. The frontend on Vercel
+
+1. **Add New → Project** → import the same repository.
+2. Set **Root Directory** to `frontend`.
+3. Add one variable: `NEXT_PUBLIC_API_URL` = your Railway domain, no trailing slash.
+4. Deploy, and note the `https://something.vercel.app` address.
+
+### 4. Close the loop
+
+Go back to Railway and set `APP_FRONTEND_URL` to the Vercel URL, then redeploy.
+Until you do this, every browser request fails CORS and the site looks broken
+while the API is perfectly healthy.
+
+### 5. Make yourself an admin
+
+Sign up on the live site with the address you put in `APP_BOOTSTRAP_ADMIN_EMAILS`,
+then restart the Railway service. The log says `Promoted you@example.com to ADMIN`
+and an **Admin** link appears in the header.
+
+### 6. Google sign-in (optional)
+
+In the Google Cloud Console, add this authorised redirect URI — it points at the
+**API**, not the frontend, which is the single most common mistake:
+
+```
+https://your-api.up.railway.app/login/oauth2/code/google
+```
+
+Then set `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID` and
+`..._CLIENT_SECRET` on Railway.
+
+### Things that will bite you
+
+- **Cookies across two domains.** The refresh token is `SameSite=None; Secure`,
+  which browsers require when the frontend and API are on different sites. It
+  works, but Safari's tracking prevention is unfriendly to it. Once you have a
+  custom domain, put the frontend on the apex and the API on `api.`, and the
+  cookie becomes same-site.
+- **Vercel preview deployments** each get their own URL and will fail CORS. Add
+  them to `APP_EXTRA_ALLOWED_ORIGINS` (comma-separated) if you need previews to
+  talk to the live API.
+- **Railway has no permanent free tier.** After the trial credit it is a paid
+  Hobby plan, and a JVM idling at several hundred megabytes uses that allowance
+  faster than a Node service would. Check the current terms.
+- **Vercel's free plan is non-commercial.** Fine now; relevant if you ever charge
+  for this.
+- **Uploads have nowhere to go.** There is no file upload in the app yet, and
+  when you add one the files must go to something like Cloudinary, never the
+  container's disk.
+
 ## Conventions
 
 - All endpoints live under `/api/v1`.
