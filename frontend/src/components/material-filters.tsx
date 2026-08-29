@@ -69,6 +69,7 @@ export function MaterialFilters({
           <option value="">Any format</option>
           <option value="ARTICLE">Articles</option>
           <option value="VIDEO">Videos</option>
+          <option value="QUIZ">Quizzes</option>
         </select>
 
         <select

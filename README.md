@@ -4,9 +4,9 @@ A two-role learning platform for agriculture competitive exams. Admins publish
 articles, YouTube lessons and MCQ quizzes organised by exam and topic; learners
 read, watch, attempt, like, comment and assemble their own learning paths.
 
-**Status: phases 1–5 of 8 complete** — skeleton, database, authentication, the
-exam/topic taxonomy, articles and video lessons with a draft/publish workflow, and
-likes and comments. Quizzes and learning paths are still to come.
+**Status: phases 1–6 of 8 complete** — skeleton, database, authentication, the
+exam/topic taxonomy, articles and video lessons, likes and comments, and MCQ
+quizzes with server-side marking. Learning paths and search are still to come.
 
 ## Stack
 
@@ -153,6 +153,13 @@ application starts fine without them. To enable it:
 | POST   | `/api/v1/materials/{id}/comments` | user | Rate limited                |
 | PATCH  | `/api/v1/comments/{id}`  | author | Author only, never an admin       |
 | DELETE | `/api/v1/comments/{id}`  | author/admin | Soft delete                 |
+| GET    | `/api/v1/quizzes/{slug}` | public | Counts and marks, never the questions |
+| POST   | `/api/v1/quizzes/{slug}/attempts` | user | Starts or resumes an attempt |
+| POST   | `/api/v1/attempts/{id}/submit` | owner | Marked server-side          |
+| GET    | `/api/v1/attempts/{id}`  | owner  | Review with explanations          |
+| GET    | `/api/v1/users/me/attempts` | user | Attempt history                 |
+| POST   | `/api/v1/admin/quizzes`  | admin  | Also PUT by id                    |
+| PUT    | `/api/v1/admin/quizzes/{id}/questions` | admin | Replaces the whole set |
 
 ## Layout
 
@@ -166,12 +173,14 @@ backend/            Spring Boot API
     catalog/        Exams, the topic tree, and the admin CRUD behind them
     material/       Articles and videos, tagging, publishing, HTML sanitising
     engagement/     Likes, comment threads, moderation, rate limiting
+    quiz/           Quizzes, questions, attempts and marking
     health/         HealthController
   src/main/resources/db/migration/   Flyway migrations
   scripts/auth_smoke.py              End-to-end auth check
   scripts/catalog_smoke.py           End-to-end taxonomy check
   scripts/materials_smoke.py         End-to-end article and video check
   scripts/engagement_smoke.py        End-to-end like and comment check
+  scripts/quizzes_smoke.py           End-to-end quiz and marking check
   Dockerfile        Multi-stage build used by Railway
 frontend/           Next.js app
   src/app/          App Router pages
@@ -208,6 +217,48 @@ Two frontend consequences of the token living in browser memory:
   settle before fetching. A request sent before the session is restored carries no
   token, and the server correctly answers as if for an anonymous reader.
 
+## How quizzes work
+
+A quiz is a third kind of material, sharing the `materials` row, so it appears in
+the same feed, carries the same tags, and uses the same draft/publish workflow.
+
+**The answer key never reaches a learner who has not submitted.** This is enforced
+structurally rather than by remembering to strip a field: the DTO used for taking a
+quiz (`AttemptOption`) has no `correct` field at all, and no explanation either.
+`scripts/quizzes_smoke.py` asserts that the strings `correct`, `iscorrect` and
+`explanation` are absent from the raw take-the-quiz payload — a test that fails if
+anyone ever widens that type.
+
+- **Marking is server-side.** A right answer earns the marks, a wrong one subtracts
+  the negative marks, and a blank scores zero rather than being penalised.
+- **Decimals throughout**, because negative marking in Indian competitive exams is
+  routinely fractional. Scores are `BigDecimal` server-side; the client only displays.
+- **An option id belonging to a different question is rejected**, not silently
+  treated as unanswered, because that means the client is confused.
+- **Attempts are resumed, not restarted.** Reloading mid-quiz returns the attempt
+  already open, and the countdown is computed from the server's `expiresAt` so a
+  skewed client clock cannot buy extra time.
+- **The time limit is reported, not enforced.** This is practice: a learner who runs
+  over only shortchanges their own exam simulation, and rejecting the submission
+  would throw away work over a network hiccup. The result carries `withinTimeLimit`.
+- **Past results are immutable.** Each attempt stores its own score and total, so
+  editing a quiz afterwards cannot rewrite what someone already scored.
+- **Questions are replaced as a whole set**, which is what makes the paste-in bulk
+  import a single request. Exactly one option must be correct, checked server-side.
+
+The admin question builder accepts a plain-text format, because typing fifty MCQs
+through a form one at a time is punishing:
+
+```
+Q: Which nutrient is most affected by soil pH?
+*Phosphorus
+Carbon
+Silicon
+E: Availability drops sharply outside pH 6 to 7.
+```
+
+A blank line separates questions and an asterisk marks the correct option.
+
 ## Conventions
 
 - All endpoints live under `/api/v1`.
@@ -227,6 +278,7 @@ python scripts/auth_smoke.py     # end-to-end auth, needs the API running
 python scripts/catalog_smoke.py   # end-to-end taxonomy, needs an admin account
 python scripts/materials_smoke.py # end-to-end material, needs an admin account
 python scripts/engagement_smoke.py # end-to-end likes and comments
+python scripts/quizzes_smoke.py    # end-to-end quizzes and marking
 ```
 
 Each smoke script archives the material it creates, so running them does not leave

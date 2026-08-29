@@ -35,9 +35,12 @@ export default function ProfilePage() {
         <Row label="Member since" value={new Date(user.createdAt).toLocaleDateString()} />
       </dl>
 
-      <p className="mt-10 text-sm text-muted">
-        Learning paths, saved material and quiz history appear here from phase 6.
-      </p>
+      <div className="mt-10 flex flex-col gap-2">
+        <a href="/me/attempts" className="text-sm text-accent underline underline-offset-4">
+          Your quiz attempts
+        </a>
+        <p className="text-sm text-muted">Learning paths arrive in phase 7.</p>
+      </div>
     </main>
   );
 }

@@ -82,7 +82,8 @@ public class SecurityConfig {
 						// Note these are GET-only, and /api/v1/admin/** is not included.
 						.requestMatchers(HttpMethod.GET, "/api/v1/exams", "/api/v1/exams/**",
 								"/api/v1/topics", "/api/v1/topics/**",
-								"/api/v1/materials", "/api/v1/materials/**").permitAll()
+								"/api/v1/materials", "/api/v1/materials/**",
+								"/api/v1/quizzes/**").permitAll()
 						// Google redirects land on these two, before any session exists.
 						.requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
 						.anyRequest().authenticated())

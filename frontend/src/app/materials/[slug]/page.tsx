@@ -2,9 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommentThread } from "@/components/comment-thread";
 import { LikeButton } from "@/components/like-button";
+import { QuizStartCard } from "@/components/quiz-start-card";
 import { YouTubeEmbed } from "@/components/youtube-embed";
 import { fetchPublic } from "@/lib/public-api";
 import type { MaterialDetail } from "@/lib/types";
+
+const TYPE_LABEL: Record<string, string> = {
+  ARTICLE: "Article",
+  VIDEO: "Video lesson",
+  QUIZ: "Practice quiz",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +39,7 @@ export default async function MaterialPage({ params }: PageProps<"/materials/[sl
       </Link>
 
       <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-accent">
-        {material.type === "VIDEO" ? "Video lesson" : "Article"}
+        {TYPE_LABEL[material.type]}
         {material.readingMinutes ? ` · ${material.readingMinutes} min read` : ""}
       </p>
 
@@ -52,6 +59,12 @@ export default async function MaterialPage({ params }: PageProps<"/materials/[sl
       {material.type === "VIDEO" && material.youtubeId && (
         <div className="mt-8">
           <YouTubeEmbed videoId={material.youtubeId} title={material.title} />
+        </div>
+      )}
+
+      {material.type === "QUIZ" && (
+        <div className="mt-8">
+          <QuizStartCard slug={material.slug} />
         </div>
       )}
 

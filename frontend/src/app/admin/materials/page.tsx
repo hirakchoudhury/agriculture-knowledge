@@ -74,6 +74,12 @@ export default function AdminMaterialsPage() {
           >
             New video
           </Link>
+          <Link
+            href="/admin/quizzes/new"
+            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:border-accent"
+          >
+            New quiz
+          </Link>
         </div>
       </section>
 
@@ -98,6 +104,7 @@ export default function AdminMaterialsPage() {
           <option value="">Any format</option>
           <option value="ARTICLE">Articles</option>
           <option value="VIDEO">Videos</option>
+          <option value="QUIZ">Quizzes</option>
         </select>
       </div>
 
@@ -132,6 +139,15 @@ export default function AdminMaterialsPage() {
               </div>
 
               <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
+                {material.type === "QUIZ" && (
+                  <Link
+                    href={`/admin/quizzes/${material.id}`}
+                    className="text-accent underline underline-offset-4"
+                  >
+                    Questions
+                  </Link>
+                )}
+
                 {material.status === "PUBLISHED" ? (
                   <Link
                     href={`/materials/${material.slug}`}

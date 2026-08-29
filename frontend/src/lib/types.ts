@@ -157,3 +157,112 @@ export type CommentResponse = {
   parentId: number | null;
   replies: CommentResponse[];
 };
+
+/**
+ * Quiz types. Note what AttemptOption does NOT have: a correct flag. The API never
+ * sends one before submission, and mirroring that here keeps the omission visible.
+ */
+export type AttemptOption = { id: number; text: string };
+
+export type AttemptQuestion = {
+  id: number;
+  text: string;
+  imageUrl: string | null;
+  marks: number;
+  negativeMarks: number;
+  options: AttemptOption[];
+};
+
+export type AttemptView = {
+  attemptId: number;
+  quizId: number;
+  quizSlug: string;
+  title: string;
+  timeLimitSeconds: number | null;
+  startedAt: string;
+  expiresAt: string | null;
+  questions: AttemptQuestion[];
+};
+
+export type ReviewOption = { id: number; text: string; correct: boolean };
+
+export type ReviewQuestion = {
+  id: number;
+  text: string;
+  explanation: string | null;
+  imageUrl: string | null;
+  marks: number;
+  negativeMarks: number;
+  awarded: number;
+  selectedOptionId: number | null;
+  correctOptionId: number | null;
+  answeredCorrectly: boolean;
+  options: ReviewOption[];
+};
+
+export type AttemptResult = {
+  attemptId: number;
+  quizId: number;
+  quizSlug: string;
+  title: string;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  passPercentage: number;
+  passed: boolean;
+  withinTimeLimit: boolean;
+  startedAt: string;
+  submittedAt: string;
+  questions: ReviewQuestion[];
+};
+
+export type AttemptSummary = {
+  attemptId: number;
+  quizId: number;
+  quizSlug: string;
+  quizTitle: string;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  passed: boolean;
+  submittedAt: string;
+};
+
+export type QuizSummary = {
+  id: number;
+  slug: string;
+  title: string;
+  summary: string | null;
+  questionCount: number;
+  totalMarks: number;
+  timeLimitSeconds: number | null;
+  passPercentage: number;
+  attemptsByMe: number;
+};
+
+/** Admin-side shapes, where the answer key is the thing being edited. */
+export type AdminOption = { id: number | null; text: string; correct: boolean; displayOrder: number };
+
+export type AdminQuestion = {
+  id: number | null;
+  text: string;
+  explanation: string | null;
+  imageUrl: string | null;
+  marks: number;
+  negativeMarks: number;
+  displayOrder: number;
+  options: AdminOption[];
+};
+
+export type AdminQuizDetail = {
+  id: number;
+  title: string;
+  slug: string;
+  summary: string | null;
+  status: MaterialStatus;
+  timeLimitSeconds: number | null;
+  passPercentage: number;
+  shuffleQuestions: boolean;
+  totalMarks: number;
+  questions: AdminQuestion[];
+};
