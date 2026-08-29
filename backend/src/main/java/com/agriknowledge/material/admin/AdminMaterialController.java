@@ -45,8 +45,10 @@ public class AdminMaterialController {
 			@RequestParam(required = false) MaterialType type,
 			@RequestParam(required = false) String q,
 			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "20") int size) {
-		return materials.search(status, type, null, null, null, q, page, size, "newest");
+			@RequestParam(defaultValue = "20") int size,
+			@AuthenticationPrincipal AuthPrincipal principal) {
+		return materials.search(status, type, null, null, null, q, page, size, "newest",
+				principal.userId());
 	}
 
 	@PostMapping("/articles")

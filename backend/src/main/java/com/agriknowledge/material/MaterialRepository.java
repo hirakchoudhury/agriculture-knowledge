@@ -60,4 +60,16 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 	@Query("update Material m set m.viewCount = m.viewCount + 1 where m.id = :id")
 	void incrementViewCount(@Param("id") Long id);
 
+	/**
+	 * Counters move by a delta in the same transaction as the like or comment that
+	 * caused them, rather than being recomputed with COUNT(*) on every listing.
+	 */
+	@Modifying
+	@Query("update Material m set m.likeCount = m.likeCount + :delta where m.id = :id")
+	void adjustLikeCount(@Param("id") Long id, @Param("delta") int delta);
+
+	@Modifying
+	@Query("update Material m set m.commentCount = m.commentCount + :delta where m.id = :id")
+	void adjustCommentCount(@Param("id") Long id, @Param("delta") int delta);
+
 }

@@ -21,5 +21,6 @@ public record MaterialSummary(
 		long viewCount,
 		long likeCount,
 		long commentCount,
-		List<String> topicNames) {
+		List<String> topicNames,
+		boolean likedByMe) {
 }

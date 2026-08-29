@@ -34,7 +34,9 @@ public record MaterialDetail(
 		String bodyHtml,
 		Integer readingMinutes,
 		String youtubeId,
-		Integer durationSeconds) {
+		Integer durationSeconds,
+		/** Whether the caller has liked this. Always false for anonymous readers. */
+		boolean likedByMe) {
 
 	/** Enough to render a chip and link to it, without the whole entity. */
 	public record TagRef(Long id, String name, String slug) {

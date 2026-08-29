@@ -4,9 +4,9 @@ A two-role learning platform for agriculture competitive exams. Admins publish
 articles, YouTube lessons and MCQ quizzes organised by exam and topic; learners
 read, watch, attempt, like, comment and assemble their own learning paths.
 
-**Status: phases 1–4 of 8 complete** — skeleton, database, authentication, the
-exam/topic taxonomy, and articles and video lessons with a draft/publish workflow.
-Likes, comments and quizzes are still to come.
+**Status: phases 1–5 of 8 complete** — skeleton, database, authentication, the
+exam/topic taxonomy, articles and video lessons with a draft/publish workflow, and
+likes and comments. Quizzes and learning paths are still to come.
 
 ## Stack
 
@@ -147,6 +147,12 @@ application starts fine without them. To enable it:
 | POST   | `/api/v1/admin/materials/articles` | admin | Also PUT by id                |
 | POST   | `/api/v1/admin/materials/videos`   | admin | Also PUT by id                |
 | PATCH  | `/api/v1/admin/materials/{id}/status` | admin | Publish, unpublish, archive |
+| GET    | `/api/v1/materials/{id}/like` | public | Reports the caller's own like state |
+| POST   | `/api/v1/materials/{id}/like` | user | Idempotent; DELETE to undo    |
+| GET    | `/api/v1/materials/{id}/comments` | public | Threads, replies nested one level |
+| POST   | `/api/v1/materials/{id}/comments` | user | Rate limited                |
+| PATCH  | `/api/v1/comments/{id}`  | author | Author only, never an admin       |
+| DELETE | `/api/v1/comments/{id}`  | author/admin | Soft delete                 |
 
 ## Layout
 
@@ -159,16 +165,48 @@ backend/            Spring Boot API
     user/           User entity, roles, profile endpoints
     catalog/        Exams, the topic tree, and the admin CRUD behind them
     material/       Articles and videos, tagging, publishing, HTML sanitising
+    engagement/     Likes, comment threads, moderation, rate limiting
     health/         HealthController
   src/main/resources/db/migration/   Flyway migrations
   scripts/auth_smoke.py              End-to-end auth check
   scripts/catalog_smoke.py           End-to-end taxonomy check
   scripts/materials_smoke.py         End-to-end article and video check
+  scripts/engagement_smoke.py        End-to-end like and comment check
   Dockerfile        Multi-stage build used by Railway
 frontend/           Next.js app
   src/app/          App Router pages
   src/lib/          api.ts, auth-context.tsx, token-store.ts, types.ts
 ```
+
+## How engagement works
+
+- **Liking is idempotent.** Pressing like twice is the same as once, which matters
+  when an optimistic UI retries after a dropped connection. A unique constraint on
+  `(user_id, material_id)` settles the race; the application check in front of it
+  is only an optimisation.
+- **Counts are denormalised** onto the material row and moved by a delta in the
+  same transaction as the like or comment. A listing of twenty cards would
+  otherwise run two aggregates per card.
+- **Comments are one level deep.** Replying to a reply is refused, because
+  unbounded nesting has no sensible rendering.
+- **Deleting a comment is a soft delete.** The row survives so replies underneath
+  it keep their anchor, but the text and the author's name are dropped. A deleted
+  comment is only shown while it still has a *visible* reply — otherwise it
+  disappears entirely rather than leaving a stub.
+- **An admin can delete any comment but cannot edit one.** Removing something
+  objectionable is moderation; rewriting it puts words in someone's mouth.
+- **Comment creation is rate limited** to five per minute per account. The limiter
+  is in-memory and therefore per-instance: on more than one API container this
+  belongs in Redis instead.
+
+Two frontend consequences of the token living in browser memory:
+
+- The material page is server-rendered *without* the viewer's token, so the first
+  HTML always says "not liked". The like button corrects itself on mount with one
+  small request rather than re-fetching the whole material.
+- Components that need to know who the viewer is must wait for the auth context to
+  settle before fetching. A request sent before the session is restored carries no
+  token, and the server correctly answers as if for an anonymous reader.
 
 ## Conventions
 
@@ -188,6 +226,7 @@ cd backend
 python scripts/auth_smoke.py     # end-to-end auth, needs the API running
 python scripts/catalog_smoke.py   # end-to-end taxonomy, needs an admin account
 python scripts/materials_smoke.py # end-to-end material, needs an admin account
+python scripts/engagement_smoke.py # end-to-end likes and comments
 ```
 
 Each smoke script archives the material it creates, so running them does not leave

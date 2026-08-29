@@ -107,6 +107,7 @@ export type MaterialSummary = {
   likeCount: number;
   commentCount: number;
   topicNames: string[];
+  likedByMe: boolean;
 };
 
 export type TagRef = { id: number; name: string; slug: string };
@@ -136,4 +137,23 @@ export type MaterialDetail = {
   readingMinutes: number | null;
   youtubeId: string | null;
   durationSeconds: number | null;
+  likedByMe: boolean;
+};
+
+/** Mirrors engagement/dto/LikeResponse.java. */
+export type LikeResponse = { liked: boolean; likeCount: number };
+
+/** Mirrors engagement/dto/CommentResponse.java. */
+export type CommentResponse = {
+  id: number;
+  body: string;
+  authorId: number | null;
+  authorName: string | null;
+  authorAvatarUrl: string | null;
+  createdAt: string;
+  editedAt: string | null;
+  deleted: boolean;
+  mine: boolean;
+  parentId: number | null;
+  replies: CommentResponse[];
 };

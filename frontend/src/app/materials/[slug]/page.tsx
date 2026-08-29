@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CommentThread } from "@/components/comment-thread";
+import { LikeButton } from "@/components/like-button";
 import { YouTubeEmbed } from "@/components/youtube-embed";
 import { fetchPublic } from "@/lib/public-api";
 import type { MaterialDetail } from "@/lib/types";
@@ -65,6 +67,10 @@ export default async function MaterialPage({ params }: PageProps<"/materials/[sl
         />
       )}
 
+      <div className="mt-8">
+        <LikeButton materialId={material.id} initialCount={material.likeCount} />
+      </div>
+
       {(material.topics.length > 0 || material.exams.length > 0) && (
         <footer className="mt-12 border-t border-line pt-6">
           {material.topics.length > 0 && (
@@ -100,6 +106,8 @@ export default async function MaterialPage({ params }: PageProps<"/materials/[sl
           )}
         </footer>
       )}
+
+      <CommentThread materialId={material.id} />
     </main>
   );
 }

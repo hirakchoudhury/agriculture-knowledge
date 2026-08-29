@@ -8,6 +8,7 @@ import com.agriknowledge.common.BadRequestException;
 import com.agriknowledge.common.NotFoundException;
 import com.agriknowledge.common.PageResponse;
 import com.agriknowledge.common.Slugs;
+import com.agriknowledge.engagement.MaterialLikeRepository;
 import com.agriknowledge.material.dto.ArticleRequest;
 import com.agriknowledge.material.dto.MaterialDetail;
 import com.agriknowledge.material.dto.MaterialSummary;
@@ -52,21 +53,25 @@ public class MaterialService {
 	private final ExamRepository exams;
 	private final UserRepository users;
 	private final ArticleHtmlSanitizer sanitizer;
+	// The material package reaching into engagement is a deliberate compromise: the
+	// alternative is a second round trip per page purely to colour in like buttons.
+	private final MaterialLikeRepository likes;
 
 	public MaterialService(MaterialRepository materials, TopicRepository topics, ExamRepository exams,
-			UserRepository users, ArticleHtmlSanitizer sanitizer) {
+			UserRepository users, ArticleHtmlSanitizer sanitizer, MaterialLikeRepository likes) {
 		this.materials = materials;
 		this.topics = topics;
 		this.exams = exams;
 		this.users = users;
 		this.sanitizer = sanitizer;
+		this.likes = likes;
 	}
 
 	// ----- reads -------------------------------------------------------------
 
 	public PageResponse<MaterialSummary> search(MaterialStatus status, MaterialType type,
 			Difficulty difficulty, Long topicId, Long examId, String query,
-			int page, int size, String sort) {
+			int page, int size, String sort, Long viewerId) {
 
 		Pageable pageable = PageRequest.of(
 				Math.max(0, page),
@@ -79,12 +84,13 @@ public class MaterialService {
 
 		Page<Material> results = materials.search(status, type, difficulty, topicId, examId, pattern, pageable);
 		Map<Long, List<String>> topicNames = topicNamesFor(results.getContent());
+		Set<Long> liked = likedIdsFor(results.getContent(), viewerId);
 
-		return PageResponse.of(results, material -> toSummary(material, topicNames));
+		return PageResponse.of(results, material -> toSummary(material, topicNames, liked));
 	}
 
 	@Transactional
-	public MaterialDetail getBySlug(String slug, boolean viewerIsAdmin) {
+	public MaterialDetail getBySlug(String slug, boolean viewerIsAdmin, Long viewerId) {
 		Material material = materials.findBySlug(slug)
 				.orElseThrow(() -> new NotFoundException("No material with slug '%s'".formatted(slug)));
 
@@ -98,7 +104,8 @@ public class MaterialService {
 			materials.incrementViewCount(material.getId());
 		}
 
-		return toDetail(material);
+		return toDetail(material, viewerId != null
+				&& likes.existsByUserIdAndMaterialId(viewerId, material.getId()));
 	}
 
 	// ----- writes ------------------------------------------------------------
@@ -117,7 +124,7 @@ public class MaterialService {
 				sanitizer.estimateReadingMinutes(safeHtml));
 
 		applyTags(article, request.topicIds(), request.examIds());
-		return toDetail(materials.save(article));
+		return toDetail(materials.save(article), false);
 	}
 
 	@Transactional
@@ -141,7 +148,7 @@ public class MaterialService {
 				request.durationSeconds());
 
 		applyTags(video, request.topicIds(), request.examIds());
-		return toDetail(materials.save(video));
+		return toDetail(materials.save(video), false);
 	}
 
 	@Transactional
@@ -154,7 +161,7 @@ public class MaterialService {
 		article.setReadingMinutes(sanitizer.estimateReadingMinutes(safeHtml));
 		applyTags(article, request.topicIds(), request.examIds());
 
-		return toDetail(article);
+		return toDetail(article, false);
 	}
 
 	@Transactional
@@ -169,7 +176,7 @@ public class MaterialService {
 		video.setDurationSeconds(request.durationSeconds());
 		applyTags(video, request.topicIds(), request.examIds());
 
-		return toDetail(video);
+		return toDetail(video, false);
 	}
 
 	@Transactional
@@ -184,7 +191,7 @@ public class MaterialService {
 			material.unpublish(status);
 		}
 
-		return toDetail(material);
+		return toDetail(material, false);
 	}
 
 	/**
@@ -267,7 +274,16 @@ public class MaterialService {
 		return byMaterial;
 	}
 
-	private MaterialSummary toSummary(Material material, Map<Long, List<String>> topicNames) {
+	/** Which of these the viewer already liked, in one query rather than one per card. */
+	private Set<Long> likedIdsFor(Collection<Material> page, Long viewerId) {
+		if (viewerId == null || page.isEmpty()) {
+			return Set.of();
+		}
+		return Set.copyOf(likes.findLikedMaterialIds(viewerId, page.stream().map(Material::getId).toList()));
+	}
+
+	private MaterialSummary toSummary(Material material, Map<Long, List<String>> topicNames,
+			Set<Long> likedIds) {
 		return new MaterialSummary(
 				material.getId(),
 				material.getType(),
@@ -281,10 +297,11 @@ public class MaterialService {
 				material.getViewCount(),
 				material.getLikeCount(),
 				material.getCommentCount(),
-				topicNames.getOrDefault(material.getId(), List.of()));
+				topicNames.getOrDefault(material.getId(), List.of()),
+				likedIds.contains(material.getId()));
 	}
 
-	private MaterialDetail toDetail(Material material) {
+	private MaterialDetail toDetail(Material material, boolean likedByMe) {
 		String bodyHtml = null;
 		Integer readingMinutes = null;
 		String youtubeId = null;
@@ -323,7 +340,8 @@ public class MaterialService {
 				bodyHtml,
 				readingMinutes,
 				youtubeId,
-				durationSeconds);
+				durationSeconds,
+				likedByMe);
 	}
 
 }
