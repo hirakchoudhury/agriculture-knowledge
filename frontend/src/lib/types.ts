@@ -266,3 +266,37 @@ export type AdminQuizDetail = {
   totalMarks: number;
   questions: AdminQuestion[];
 };
+
+export type ProgressStatus = "IN_PROGRESS" | "COMPLETED";
+
+export type PathItemResponse = {
+  itemId: number;
+  materialId: number;
+  title: string;
+  slug: string;
+  type: MaterialType;
+  difficulty: Difficulty;
+  displayOrder: number;
+  note: string | null;
+  progress: ProgressStatus;
+  completed: boolean;
+};
+
+export type PathSummary = {
+  id: number;
+  title: string;
+  description: string | null;
+  itemCount: number;
+  completedCount: number;
+  createdAt: string;
+};
+
+export type PathDetail = PathSummary & { items: PathItemResponse[] };
+
+export type ProgressResponse = {
+  materialId: number;
+  status: ProgressStatus;
+  completed: boolean;
+  lastPositionSeconds: number | null;
+  completedAt: string | null;
+};

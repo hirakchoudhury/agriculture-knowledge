@@ -36,10 +36,12 @@ export default function ProfilePage() {
       </dl>
 
       <div className="mt-10 flex flex-col gap-2">
+        <a href="/me/paths" className="text-sm text-accent underline underline-offset-4">
+          Your learning paths
+        </a>
         <a href="/me/attempts" className="text-sm text-accent underline underline-offset-4">
           Your quiz attempts
         </a>
-        <p className="text-sm text-muted">Learning paths arrive in phase 7.</p>
       </div>
     </main>
   );

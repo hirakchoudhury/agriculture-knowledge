@@ -52,6 +52,9 @@ export function SiteHeader() {
 
           {status === "authenticated" && user && (
             <>
+              <Link href="/me/paths" className="text-muted hover:text-foreground">
+                My paths
+              </Link>
               <Link href="/me" className="text-muted hover:text-foreground">
                 {user.name}
               </Link>

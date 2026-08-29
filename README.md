@@ -4,9 +4,10 @@ A two-role learning platform for agriculture competitive exams. Admins publish
 articles, YouTube lessons and MCQ quizzes organised by exam and topic; learners
 read, watch, attempt, like, comment and assemble their own learning paths.
 
-**Status: phases 1–6 of 8 complete** — skeleton, database, authentication, the
-exam/topic taxonomy, articles and video lessons, likes and comments, and MCQ
-quizzes with server-side marking. Learning paths and search are still to come.
+**Status: phases 1–7 of 8 complete** — skeleton, database, authentication, the
+exam/topic taxonomy, articles and video lessons, likes and comments, MCQ quizzes
+with server-side marking, and learner-built paths with progress tracking. Only
+search and hardening remain.
 
 ## Stack
 
@@ -160,6 +161,11 @@ application starts fine without them. To enable it:
 | GET    | `/api/v1/users/me/attempts` | user | Attempt history                 |
 | POST   | `/api/v1/admin/quizzes`  | admin  | Also PUT by id                    |
 | PUT    | `/api/v1/admin/quizzes/{id}/questions` | admin | Replaces the whole set |
+| GET    | `/api/v1/learning-paths` | user   | The caller's own paths            |
+| POST   | `/api/v1/learning-paths` | user   | Also PUT and DELETE by id         |
+| POST   | `/api/v1/learning-paths/{id}/items` | owner | Append a step          |
+| PUT    | `/api/v1/learning-paths/{id}/items/order` | owner | The complete order |
+| PUT    | `/api/v1/progress/{materialId}` | user | Mark done, or store a position |
 
 ## Layout
 
@@ -174,6 +180,7 @@ backend/            Spring Boot API
     material/       Articles and videos, tagging, publishing, HTML sanitising
     engagement/     Likes, comment threads, moderation, rate limiting
     quiz/           Quizzes, questions, attempts and marking
+    path/           Learning paths and per-material progress
     health/         HealthController
   src/main/resources/db/migration/   Flyway migrations
   scripts/auth_smoke.py              End-to-end auth check
@@ -181,6 +188,7 @@ backend/            Spring Boot API
   scripts/materials_smoke.py         End-to-end article and video check
   scripts/engagement_smoke.py        End-to-end like and comment check
   scripts/quizzes_smoke.py           End-to-end quiz and marking check
+  scripts/paths_smoke.py             End-to-end learning path check
   Dockerfile        Multi-stage build used by Railway
 frontend/           Next.js app
   src/app/          App Router pages
@@ -259,6 +267,33 @@ E: Availability drops sharply outside pH 6 to 7.
 
 A blank line separates questions and an asterisk marks the correct option.
 
+## How learning paths work
+
+A path is a learner's own ordering of published material. Everything is private to
+its owner; `is_public` reserves sharing without building it.
+
+- **Progress belongs to the learner and the material, not to the path.** An article
+  finished inside one path counts as finished everywhere it appears, and deleting a
+  path leaves progress untouched. There is a test for both.
+- **Reordering sends the complete list of item ids**, not a move instruction, so a
+  dropped request cannot leave the order half-applied and repeating it is a no-op.
+  An order that does not name exactly the current set is rejected, which catches a
+  stale client built before someone added a step.
+- **The same material cannot appear twice in one path**, enforced by a unique
+  constraint as well as a check, because the progress view would otherwise show it
+  as two independent steps.
+- **Only published material can be added**, or the path would contain something the
+  learner cannot open.
+- **Completion is stamped once.** Re-marking something done keeps the original date
+  rather than moving it.
+- Reordering in the UI uses move-up and move-down buttons rather than drag and
+  drop: it works with a keyboard and a screen reader, needs no library, and is
+  easier to hit on a phone.
+
+Path access returns **403, not 404**, for someone else's path — a deliberate
+difference from unpublished material. A learner knows their own paths exist, so
+hiding the distinction buys nothing and a clear message is more useful.
+
 ## Conventions
 
 - All endpoints live under `/api/v1`.
@@ -279,6 +314,7 @@ python scripts/catalog_smoke.py   # end-to-end taxonomy, needs an admin account
 python scripts/materials_smoke.py # end-to-end material, needs an admin account
 python scripts/engagement_smoke.py # end-to-end likes and comments
 python scripts/quizzes_smoke.py    # end-to-end quizzes and marking
+python scripts/paths_smoke.py      # end-to-end learning paths and progress
 ```
 
 Each smoke script archives the material it creates, so running them does not leave

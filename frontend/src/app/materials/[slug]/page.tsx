@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommentThread } from "@/components/comment-thread";
 import { LikeButton } from "@/components/like-button";
+import { MaterialActions } from "@/components/material-actions";
 import { QuizStartCard } from "@/components/quiz-start-card";
 import { YouTubeEmbed } from "@/components/youtube-embed";
 import { fetchPublic } from "@/lib/public-api";
@@ -82,6 +83,7 @@ export default async function MaterialPage({ params }: PageProps<"/materials/[sl
 
       <div className="mt-8">
         <LikeButton materialId={material.id} initialCount={material.likeCount} />
+        <MaterialActions materialId={material.id} />
       </div>
 
       {(material.topics.length > 0 || material.exams.length > 0) && (
