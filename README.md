@@ -370,7 +370,16 @@ Keep the output to hand; it goes into Railway in the next step and nowhere else.
 | `JAVA_TOOL_OPTIONS` | `-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k` |
 
    Take the Neon values from the connection string, dropping `channel_binding`
-   and prefixing the host with `jdbc:postgresql://`. Note this differs from the
+   and prefixing the host with `jdbc:postgresql://`.
+
+   **Use the direct endpoint, not the pooled one.** Neon's connection string
+   defaults to a host containing `-pooler`, which is PgBouncer in transaction
+   mode. HikariCP already pools connections, so that puts a pooler in front of a
+   pooler — and transaction-mode pooling does not support the server-side
+   prepared statements the Postgres JDBC driver starts using after a few
+   executions, which surfaces later as `prepared statement "S_1" already exists`
+   under load. Drop `-pooler` from the host. If you must use the pooled endpoint,
+   add `&prepareThreshold=0` to the URL instead. Note this differs from the
    original plan, which assumed Railway's own Postgres and its reference
    variables — you are pointing at Neon instead, so paste the values directly.
 
