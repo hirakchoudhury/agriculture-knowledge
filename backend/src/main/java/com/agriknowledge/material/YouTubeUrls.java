@@ -18,17 +18,32 @@ public final class YouTubeUrls {
 	/** Ids are exactly 11 characters of the URL-safe base64 alphabet. */
 	private static final String ID = "[A-Za-z0-9_-]{11}";
 
+	/**
+	 * Nothing from the id alphabet may follow. Without this, a longer id is
+	 * silently truncated to its first 11 characters and stored as a different
+	 * video, which is worse than refusing the link outright.
+	 */
+	private static final String BOUNDARY = "(?![A-Za-z0-9_-])";
+
+	/**
+	 * The link has to actually be a YouTube one. Matching {@code ?v=} alone would
+	 * accept any site that happens to use the same query parameter.
+	 */
+	private static final Pattern YOUTUBE_HOST = Pattern.compile(
+			"(?:^|[./])(?:youtube\\.com|youtube-nocookie\\.com|youtu\\.be)(?:[/:?]|$)",
+			Pattern.CASE_INSENSITIVE);
+
 	private static final List<Pattern> PATTERNS = List.of(
 			// https://www.youtube.com/watch?v=ID  (also m.youtube.com, extra params)
-			Pattern.compile("[?&]v=(" + ID + ")"),
+			Pattern.compile("[?&]v=(" + ID + ")" + BOUNDARY),
 			// https://youtu.be/ID
-			Pattern.compile("youtu\\.be/(" + ID + ")"),
+			Pattern.compile("youtu\\.be/(" + ID + ")" + BOUNDARY),
 			// https://www.youtube.com/embed/ID and /v/ID
-			Pattern.compile("youtube(?:-nocookie)?\\.com/(?:embed|v)/(" + ID + ")"),
+			Pattern.compile("youtube(?:-nocookie)?\\.com/(?:embed|v)/(" + ID + ")" + BOUNDARY),
 			// https://www.youtube.com/shorts/ID
-			Pattern.compile("youtube\\.com/shorts/(" + ID + ")"),
+			Pattern.compile("youtube\\.com/shorts/(" + ID + ")" + BOUNDARY),
 			// https://www.youtube.com/live/ID
-			Pattern.compile("youtube\\.com/live/(" + ID + ")"));
+			Pattern.compile("youtube\\.com/live/(" + ID + ")" + BOUNDARY));
 
 	private static final Pattern BARE_ID = Pattern.compile("^" + ID + "$");
 
@@ -50,6 +65,10 @@ public final class YouTubeUrls {
 		// An admin may reasonably paste just the id.
 		if (BARE_ID.matcher(trimmed).matches()) {
 			return Optional.of(trimmed);
+		}
+
+		if (!YOUTUBE_HOST.matcher(trimmed).find()) {
+			return Optional.empty();
 		}
 
 		for (Pattern pattern : PATTERNS) {

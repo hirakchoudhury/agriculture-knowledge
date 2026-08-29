@@ -1,5 +1,5 @@
 import { apiFetch } from "./api";
-import type { ExamDetail, ExamSummary, TopicNode } from "./types";
+import type { AdminStats, ExamDetail, ExamSummary, TopicNode } from "./types";
 
 export type ExamInput = {
   name: string;
@@ -57,3 +57,5 @@ export function flattenTopics(
     ...flattenTopics(node.children, depth + 1),
   ]);
 }
+
+export const getAdminStats = () => apiFetch<AdminStats>("/api/v1/admin/stats");

@@ -4,10 +4,12 @@ A two-role learning platform for agriculture competitive exams. Admins publish
 articles, YouTube lessons and MCQ quizzes organised by exam and topic; learners
 read, watch, attempt, like, comment and assemble their own learning paths.
 
-**Status: phases 1–7 of 8 complete** — skeleton, database, authentication, the
+**Status: all 8 phases complete.** Skeleton, database, authentication, the
 exam/topic taxonomy, articles and video lessons, likes and comments, MCQ quizzes
-with server-side marking, and learner-built paths with progress tracking. Only
-search and hardening remain.
+with server-side marking, learner-built paths with progress tracking, and
+full-text search with an admin dashboard.
+
+Not yet deployed. See the deployment section below.
 
 ## Stack
 
@@ -166,6 +168,7 @@ application starts fine without them. To enable it:
 | POST   | `/api/v1/learning-paths/{id}/items` | owner | Append a step          |
 | PUT    | `/api/v1/learning-paths/{id}/items/order` | owner | The complete order |
 | PUT    | `/api/v1/progress/{materialId}` | user | Mark done, or store a position |
+| GET    | `/api/v1/admin/stats`    | admin  | Dashboard counts                  |
 
 ## Layout
 
@@ -181,6 +184,7 @@ backend/            Spring Boot API
     engagement/     Likes, comment threads, moderation, rate limiting
     quiz/           Quizzes, questions, attempts and marking
     path/           Learning paths and per-material progress
+    admin/          Dashboard statistics
     health/         HealthController
   src/main/resources/db/migration/   Flyway migrations
   scripts/auth_smoke.py              End-to-end auth check
@@ -189,6 +193,7 @@ backend/            Spring Boot API
   scripts/engagement_smoke.py        End-to-end like and comment check
   scripts/quizzes_smoke.py           End-to-end quiz and marking check
   scripts/paths_smoke.py             End-to-end learning path check
+  scripts/cleanup_test_data.sql      Removes rows the smoke scripts leave behind
   Dockerfile        Multi-stage build used by Railway
 frontend/           Next.js app
   src/app/          App Router pages
@@ -294,6 +299,38 @@ Path access returns **403, not 404**, for someone else's path — a deliberate
 difference from unpublished material. A learner knows their own paths exist, so
 hiding the distinction buys nothing and a clear message is more useful.
 
+## Search
+
+Free-text search runs against a generated `tsvector` column with a GIN index, so
+it stems and ranks rather than substring-matching: "demonstrations" finds
+"Demonstration", and "practice sets" finds "Practice Set". Title matches outrank
+summary matches.
+
+The column is `GENERATED ALWAYS`, so it can never drift from the text it
+summarises — Postgres recomputes it on every write.
+
+The query itself is native, because `@@` and `ts_rank` have no JPQL equivalent.
+It returns **ids**, which are then loaded through JPA: mapping a native result
+onto a JOINED inheritance hierarchy is fragile, so the exotic SQL stays in one
+place and entity loading stays on the well-trodden path.
+
+## Rate limits
+
+Keyed by IP, in-memory, and therefore per-instance — on more than one container
+these belong in Redis.
+
+| Endpoint | Default | Override |
+| -------- | ------- | -------- |
+| Login    | 15 per 5 minutes | `APP_RATE_LIMIT_LOGIN_ATTEMPTS` |
+| Register | 25 per hour | `APP_RATE_LIMIT_REGISTRATIONS` |
+| Comments | 5 per minute, per account | — |
+
+The auth ceilings are deliberately not tight. This audience is often behind one
+shared connection — a college lab, a coaching centre, a mobile carrier NAT — where
+a handful of sign-ups an hour is normal traffic rather than an attack. A correct
+password clears the login allowance, so someone who mistypes and then succeeds is
+not left throttled.
+
 ## Conventions
 
 - All endpoints live under `/api/v1`.
@@ -316,6 +353,14 @@ python scripts/engagement_smoke.py # end-to-end likes and comments
 python scripts/quizzes_smoke.py    # end-to-end quizzes and marking
 python scripts/paths_smoke.py      # end-to-end learning paths and progress
 ```
+
+`./mvnw test` runs 48 unit and slice tests with no database or Docker needed. The
+six smoke scripts add 270 end-to-end checks against a running API.
+
+The smoke scripts archive the material they create, but they also leave throwaway
+accounts, topics and exams behind. `scripts/cleanup_test_data.sql` removes those —
+read it before running it, and run it yourself in the Neon SQL editor. There is
+deliberately no hard-delete endpoint in the application.
 
 Each smoke script archives the material it creates, so running them does not leave
 test rows on the public library page.

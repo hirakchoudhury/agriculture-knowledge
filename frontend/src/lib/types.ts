@@ -300,3 +300,25 @@ export type ProgressResponse = {
   lastPositionSeconds: number | null;
   completedAt: string | null;
 };
+
+/** Mirrors admin/AdminStats.java. */
+export type AdminStats = {
+  materialsByStatus: Record<string, number>;
+  materialsByType: Record<string, number>;
+  users: number;
+  admins: number;
+  topics: number;
+  exams: number;
+  comments: number;
+  likes: number;
+  quizAttempts: number;
+  learningPaths: number;
+  mostViewed: Array<{
+    id: number;
+    title: string;
+    slug: string;
+    type: string;
+    viewCount: number;
+    likeCount: number;
+  }>;
+};

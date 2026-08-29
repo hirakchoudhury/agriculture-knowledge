@@ -45,6 +45,10 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 			@Param("pattern") String pattern,
 			Pageable pageable);
 
+	/** Loads a page of search hits. Order comes from the caller, not the database. */
+	@Query("select m from Material m where m.id in :ids")
+	List<Material> findAllByIdIn(@Param("ids") Collection<Long> ids);
+
 	/**
 	 * Topic names for a whole page of results in one query. Reading them off each
 	 * entity instead would fire one query per card.

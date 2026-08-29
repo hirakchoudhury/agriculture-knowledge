@@ -42,6 +42,14 @@ app:
   # exist — sign up first, then restart. There is no public route to becoming admin.
   bootstrap-admin-emails: ${APP_BOOTSTRAP_ADMIN_EMAILS:}
 
+  # Keyed by IP. Generous by default because this audience is often behind one
+  # shared connection; tighten per deployment if you know your traffic.
+  rate-limit:
+    login-attempts: ${APP_RATE_LIMIT_LOGIN_ATTEMPTS:15}
+    login-window: ${APP_RATE_LIMIT_LOGIN_WINDOW:PT5M}
+    registrations: ${APP_RATE_LIMIT_REGISTRATIONS:25}
+    registration-window: ${APP_RATE_LIMIT_REGISTRATION_WINDOW:PT1H}
+
   jwt:
     # Base64-encoded, at least 32 bytes. Generate with: openssl rand -base64 32
     secret: ${APP_JWT_SECRET:}

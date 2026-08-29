@@ -16,6 +16,7 @@ import com.agriknowledge.material.dto.VideoRequest;
 import com.agriknowledge.user.User;
 import com.agriknowledge.user.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -56,15 +57,18 @@ public class MaterialService {
 	// The material package reaching into engagement is a deliberate compromise: the
 	// alternative is a second round trip per page purely to colour in like buttons.
 	private final MaterialLikeRepository likes;
+	private final MaterialSearch search;
 
 	public MaterialService(MaterialRepository materials, TopicRepository topics, ExamRepository exams,
-			UserRepository users, ArticleHtmlSanitizer sanitizer, MaterialLikeRepository likes) {
+			UserRepository users, ArticleHtmlSanitizer sanitizer, MaterialLikeRepository likes,
+			MaterialSearch search) {
 		this.materials = materials;
 		this.topics = topics;
 		this.exams = exams;
 		this.users = users;
 		this.sanitizer = sanitizer;
 		this.likes = likes;
+		this.search = search;
 	}
 
 	// ----- reads -------------------------------------------------------------
@@ -78,15 +82,40 @@ public class MaterialService {
 				Math.clamp(size, 1, MAX_PAGE_SIZE),
 				SORTS.getOrDefault(sort == null ? "newest" : sort, SORTS.get("newest")));
 
-		String pattern = (query == null || query.isBlank())
-				? null
-				: "%" + query.trim().toLowerCase(Locale.ROOT) + "%";
-
-		Page<Material> results = materials.search(status, type, difficulty, topicId, examId, pattern, pageable);
+		// A free-text query goes through the tsvector index and comes back ranked;
+		// everything else uses the plain filtered query, sorted as the caller asked.
+		Page<Material> results = (query == null || query.isBlank())
+				? materials.search(status, type, difficulty, topicId, examId, null, pageable)
+				: fullTextSearch(status, type, difficulty, topicId, examId, query.trim(), pageable);
 		Map<Long, List<String>> topicNames = topicNamesFor(results.getContent());
 		Set<Long> liked = likedIdsFor(results.getContent(), viewerId);
 
 		return PageResponse.of(results, material -> toSummary(material, topicNames, liked));
+	}
+
+	/**
+	 * Runs the ranked search, then loads the entities for that page and puts them
+	 * back into rank order — {@code where id in (...)} makes no promise about order.
+	 */
+	private Page<Material> fullTextSearch(MaterialStatus status, MaterialType type,
+			Difficulty difficulty, Long topicId, Long examId, String query, Pageable pageable) {
+
+		Page<Long> ids = search.findMatchingIds(status, type, difficulty, topicId, examId, query, pageable);
+		if (ids.isEmpty()) {
+			return new PageImpl<>(List.of(), pageable, ids.getTotalElements());
+		}
+
+		Map<Long, Material> byId = new HashMap<>();
+		for (Material material : materials.findAllByIdIn(ids.getContent())) {
+			byId.put(material.getId(), material);
+		}
+
+		List<Material> ordered = ids.getContent().stream()
+				.map(byId::get)
+				.filter(java.util.Objects::nonNull)
+				.toList();
+
+		return new PageImpl<>(ordered, pageable, ids.getTotalElements());
 	}
 
 	@Transactional

@@ -26,9 +26,20 @@ class HealthControllerTest {
 	}
 
 	@Test
-	void unknownEndpointsRequireAuthentication() throws Exception {
-		mockMvc.perform(get("/api/v1/materials"))
+	void protectedEndpointsRequireAuthentication() throws Exception {
+		// Deliberately not /api/v1/materials: that became public in phase 4, and
+		// this assertion silently rotted until the test suite caught it.
+		mockMvc.perform(get("/api/v1/users/me"))
 				.andExpect(status().isUnauthorized());
+
+		mockMvc.perform(get("/api/v1/learning-paths"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void publicReadingDoesNotRequireAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/materials")).andExpect(status().isOk());
+		mockMvc.perform(get("/api/v1/exams")).andExpect(status().isOk());
 	}
 
 }
