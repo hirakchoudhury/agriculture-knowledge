@@ -1,0 +1,12 @@
+# Vercel builds on its own servers, so none of this needs uploading.
+# Without it the local .next directory (hundreds of megabytes after a few builds)
+# goes up on every deploy, which is slow and times out as "fetch failed".
+node_modules
+.next
+out
+
+# Local-only environment files. Production values live in the Vercel project.
+.env*.local
+
+.vercel
+*.tsbuildinfo

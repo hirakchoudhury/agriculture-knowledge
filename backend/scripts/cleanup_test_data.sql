@@ -18,7 +18,14 @@
 
 select count(*) as test_accounts
 from users
-where email ~ '^(smoke|learner|reader|alice|bob|carol|quizzer|nosy|planner|stranger)\+[0-9]+@example\.com$';
+where email ~ '^(smoke|learner|reader|alice|bob|carol|quizzer|nosy|planner|stranger)\+[0-9]+@example\.com$'
+   or email = 'browsertest-phase2@example.com';
+
+-- URGENT if you have deployed. browsertest-phase2@example.com was promoted to
+-- ADMIN during development and its password was typed in plain text into a chat
+-- transcript. Production shares this database, so that account is an admin on the
+-- live site. This should go before anything else.
+select email, role from users where email = 'browsertest-phase2@example.com';
 
 select count(*) as test_material
 from materials
@@ -32,11 +39,24 @@ where title ~ ' 1[0-9]{9}$';
 
 begin;
 
+-- FIRST: hand over anything the development admin authored.
+--
+-- materials.author_id has no ON DELETE rule, so deleting that account while it
+-- still owns published material would fail on the foreign key. The two starter
+-- articles were written under it, and they should survive. Run this only after
+-- you have signed up, so there is an account to hand them to.
+update materials
+set author_id = (select id from users where email = 'hhirakk18@gmail.com')
+where author_id = (select id from users where email = 'browsertest-phase2@example.com')
+  and exists (select 1 from users where email = 'hhirakk18@gmail.com');
+
+
 delete from materials
 where title ~ ' 1[0-9]{9}$';
 
 delete from users
-where email ~ '^(smoke|learner|reader|alice|bob|carol|quizzer|nosy|planner|stranger)\+[0-9]+@example\.com$';
+where email ~ '^(smoke|learner|reader|alice|bob|carol|quizzer|nosy|planner|stranger)\+[0-9]+@example\.com$'
+   or email = 'browsertest-phase2@example.com';
 
 -- Topics and exams created by catalog_smoke.py carry the same timestamp suffix.
 delete from topics where name ~ ' 1[0-9]{9}$';

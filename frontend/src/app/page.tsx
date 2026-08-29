@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { fetchPublic } from "@/lib/public-api";
-import type { ExamSummary } from "@/lib/types";
+import type { ExamSummary, MaterialSummary, PageResponse } from "@/lib/types";
 
 // The API is a separate service, so this page must render per request. Without
 // this Next would try to reach the backend during `next build`, and a Vercel
@@ -8,7 +8,11 @@ import type { ExamSummary } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const exams = await fetchPublic<ExamSummary[]>("/api/v1/exams");
+  // One round trip each, in parallel rather than in sequence.
+  const [articles, exams] = await Promise.all([
+    fetchPublic<PageResponse<MaterialSummary>>("/api/v1/materials?type=ARTICLE&size=4"),
+    fetchPublic<ExamSummary[]>("/api/v1/exams"),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-20">
@@ -17,25 +21,88 @@ export default async function Home() {
       </h1>
       <p className="mt-4 max-w-xl text-muted">
         Articles, video lessons and practice questions for agriculture competitive
-        exams. Pick a syllabus to see what it covers.
+        exams. Read something now, or pick a syllabus to see what it covers.
       </p>
 
-      <section className="mt-12">
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          href="/materials"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-background"
+        >
+          Browse the library
+        </Link>
+        <Link
+          href="/materials?type=QUIZ"
+          className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:border-accent"
+        >
+          Practice quizzes
+        </Link>
+      </div>
+
+      {/* Reading material leads, because that is what a visitor came for. */}
+      <section className="mt-14">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
+            Latest reading
+          </h2>
+          {articles && articles.totalElements > 4 && (
+            <Link
+              href="/materials?type=ARTICLE"
+              className="text-xs text-accent underline underline-offset-4"
+            >
+              All {articles.totalElements} articles
+            </Link>
+          )}
+        </div>
+
+        {articles === null && (
+          <p className="mt-4 text-sm text-danger">
+            Could not reach the API just now. Please try again in a moment.
+          </p>
+        )}
+
+        {articles?.content.length === 0 && (
+          <p className="mt-4 text-sm text-muted">Nothing published yet.</p>
+        )}
+
+        <ul className="mt-4 flex flex-col gap-3">
+          {articles?.content.map((article) => (
+            <li key={article.id}>
+              <Link
+                href={`/materials/${article.slug}`}
+                className="block rounded-md border border-line bg-surface p-5 transition-colors hover:border-accent"
+              >
+                <h3 className="font-semibold leading-snug">{article.title}</h3>
+
+                {/* The summary is the excerpt: enough to decide whether to read on. */}
+                {article.summary && (
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                    {article.summary}
+                  </p>
+                )}
+
+                <p className="mt-3 flex flex-wrap items-center gap-x-3 font-mono text-[11px] text-muted">
+                  <span className="text-accent">Read more →</span>
+                  {article.topicNames.length > 0 && (
+                    <span>{article.topicNames.join(" · ")}</span>
+                  )}
+                  <span>
+                    {article.viewCount} {article.viewCount === 1 ? "view" : "views"}
+                  </span>
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-14">
         <h2 className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
           Exams
         </h2>
 
-        {exams === null && (
-          <p className="mt-4 text-sm text-danger">
-            Could not reach the API. Start the backend with{" "}
-            <code className="font-mono">./mvnw spring-boot:run</code>.
-          </p>
-        )}
-
         {exams?.length === 0 && (
-          <p className="mt-4 text-sm text-muted">
-            Nothing published yet. An admin adds exams and topics from the admin area.
-          </p>
+          <p className="mt-4 text-sm text-muted">No syllabuses published yet.</p>
         )}
 
         {exams && exams.length > 0 && (
@@ -64,15 +131,20 @@ export default async function Home() {
 
       <section className="mt-14 border-t border-line pt-8">
         <h2 className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
-          Coming next
+          How it works
         </h2>
         <ul className="mt-4 space-y-2 text-sm text-muted">
           <li>
-            <span className="text-foreground">Phase 4 — Articles and videos.</span>{" "}
-            Publishing, tagging against topics and exams, and public reading pages.
+            <span className="text-foreground">Read and watch.</span> Articles and
+            video lessons, tagged by topic and by the exams they count towards.
           </li>
           <li>
-            <span className="text-foreground">Phase 5 — Likes and comments.</span>
+            <span className="text-foreground">Test yourself.</span> Practice quizzes
+            marked the moment you submit, with an explanation for every question.
+          </li>
+          <li>
+            <span className="text-foreground">Build your own order.</span> Collect
+            anything into a learning path and track what you have finished.
           </li>
         </ul>
       </section>
