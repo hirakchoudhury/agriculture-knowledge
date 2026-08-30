@@ -14,6 +14,8 @@ const OAUTH_ERRORS: Record<string, string> = {
     "That Google account has an unverified email address, so it cannot be used to sign in.",
   google_profile_incomplete:
     "Google did not share an email address for that account.",
+  admin_must_use_password:
+    "Admin accounts sign in with a password, not with Google. Use the form above.",
 };
 
 /**

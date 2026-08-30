@@ -3,6 +3,7 @@ package com.agriknowledge.auth.oauth2;
 import com.agriknowledge.auth.AuthService;
 import com.agriknowledge.auth.RefreshCookieFactory;
 import com.agriknowledge.config.AppProperties;
+import com.agriknowledge.user.Role;
 import com.agriknowledge.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -74,6 +75,17 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 				name != null ? name : email,
 				oauthUser.getAttribute("picture"),
 				subject);
+
+		// The sharper half of the rule. findOrCreateGoogleUser matches on email, so
+		// without this a Google sign-in using an admin's address would be handed
+		// that admin's session -- federating the most privileged account in the
+		// system to an identity provider we do not control.
+		if (user.getRole() == Role.ADMIN) {
+			log.warn("Refused Google sign-in for admin account {}; admins must use a password",
+					user.getId());
+			response.sendRedirect(failureUrl("admin_must_use_password"));
+			return;
+		}
 
 		AuthService.IssuedSession session = authService.issueSession(
 				user, request.getHeader(HttpHeaders.USER_AGENT));

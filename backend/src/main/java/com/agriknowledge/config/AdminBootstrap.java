@@ -1,5 +1,6 @@
 package com.agriknowledge.config;
 
+import com.agriknowledge.user.AuthProvider;
 import com.agriknowledge.user.Role;
 import com.agriknowledge.user.User;
 import com.agriknowledge.user.UserRepository;
@@ -46,6 +47,16 @@ public class AdminBootstrap implements ApplicationRunner {
 			}
 
 			users.findByEmail(email).ifPresentOrElse(user -> {
+				// Admins authenticate with a password, never through Google.
+				// A federated account puts control of the admin role in the hands
+				// of whoever controls the Google account, and a Google session
+				// cannot be revoked from here.
+				if (user.getProvider() != AuthProvider.LOCAL) {
+					log.warn("Refusing to promote {} to ADMIN: it is a {} account, and "
+							+ "admins must sign in with a password.", email, user.getProvider());
+					return;
+				}
+
 				if (user.getRole() != Role.ADMIN) {
 					user.setRole(Role.ADMIN);
 					log.info("Promoted {} to ADMIN", email);
