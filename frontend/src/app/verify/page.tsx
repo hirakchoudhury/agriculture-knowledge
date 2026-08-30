@@ -133,7 +133,15 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<main className="flex-1 px-6 py-16 text-sm text-muted">Loading…</main>}>
+    <Suspense
+      fallback={
+        <main className="mx-auto w-full max-w-sm flex-1 px-6 py-16">
+          <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
+          <p className="mt-2 text-sm text-muted">We sent a 6-digit code to your address.</p>
+          <div className="mt-8 h-32 animate-pulse rounded-md bg-surface" />
+        </main>
+      }
+    >
       <VerifyForm />
     </Suspense>
   );

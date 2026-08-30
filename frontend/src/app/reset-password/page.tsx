@@ -126,7 +126,15 @@ function ResetForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<main className="flex-1 px-6 py-16 text-sm text-muted">Loading…</main>}>
+    <Suspense
+      fallback={
+        <main className="mx-auto w-full max-w-sm flex-1 px-6 py-16">
+          <h1 className="text-2xl font-semibold tracking-tight">Set a new password</h1>
+          <p className="mt-2 text-sm text-muted">Enter the code from your email and choose a new password.</p>
+          <div className="mt-8 h-32 animate-pulse rounded-md bg-surface" />
+        </main>
+      }
+    >
       <ResetForm />
     </Suspense>
   );

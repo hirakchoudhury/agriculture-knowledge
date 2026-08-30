@@ -16,18 +16,35 @@ const OAUTH_ERRORS: Record<string, string> = {
     "Google did not share an email address for that account.",
 };
 
-function LoginForm() {
+/**
+ * The only thing on this page that needs the query string.
+ *
+ * Isolated deliberately: useSearchParams opts its whole subtree out of
+ * prerendering, and when it wrapped the entire form the served HTML was nothing
+ * but "Loading…" — a blank sign-in page until JavaScript arrived, with the Google
+ * button absent from the markup entirely. Confining it to this one line lets the
+ * form render on the server as it should.
+ */
+function OAuthErrorNotice() {
+  const params = useSearchParams();
+  const message = OAUTH_ERRORS[params.get("error") ?? ""];
+
+  if (!message) return null;
+
+  return (
+    <p role="alert" className="mt-4 rounded-md border border-danger/40 px-3 py-2 text-sm text-danger">
+      {message}
+    </p>
+  );
+}
+
+export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(
-    OAUTH_ERRORS[searchParams.get("error") ?? ""] ?? null,
-  );
-  // A 403 here means the account exists and the password was right, but the
-  // address was never verified. That deserves a way forward, not just an error.
+  const [error, setError] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,10 +52,13 @@ function LoginForm() {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    setNeedsVerification(false);
     try {
       await login(email, password);
       router.push("/me");
     } catch (caught) {
+      // 403 here means the password was right but the address was never
+      // verified. That deserves a way forward, not a generic failure.
       if (caught instanceof ApiError && caught.status === 403) {
         setNeedsVerification(true);
         setError(caught.message);
@@ -46,7 +66,7 @@ function LoginForm() {
         setError(
           caught instanceof ApiError
             ? caught.message
-            : "Could not reach the server. Is the API running?",
+            : "Could not reach the server. Please try again.",
         );
       }
     } finally {
@@ -63,6 +83,11 @@ function LoginForm() {
           Create an account
         </Link>
       </p>
+
+      {/* Renders nothing without an ?error=, so the boundary costs nothing. */}
+      <Suspense fallback={null}>
+        <OAuthErrorNotice />
+      </Suspense>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
         <Field
@@ -130,14 +155,5 @@ function LoginForm() {
         Continue with Google
       </a>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  // useSearchParams needs a Suspense boundary during prerendering.
-  return (
-    <Suspense fallback={<main className="flex-1 px-6 py-16 text-muted">Loading…</main>}>
-      <LoginForm />
-    </Suspense>
   );
 }
