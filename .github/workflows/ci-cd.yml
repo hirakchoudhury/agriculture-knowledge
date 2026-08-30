@@ -1,0 +1,231 @@
+# Tests every push, deploys main.
+#
+# Deploys are CLI-driven rather than platform-driven: neither Railway nor Vercel
+# is connected to this repository, so nothing ships unless this workflow ships it.
+# That is deliberate — it means a red build cannot reach production.
+#
+# Repository secrets this needs (Settings -> Secrets and variables -> Actions):
+#
+#   RAILWAY_TOKEN       a Railway *project* token, from the project's Settings ->
+#                       Tokens. Not a personal account token.
+#   VERCEL_TOKEN        https://vercel.com/account/tokens
+#   VERCEL_ORG_ID       both are in frontend/.vercel/project.json, which is
+#   VERCEL_PROJECT_ID   gitignored, so they have to be copied in by hand.
+#
+# Optional repository *variable*: NEXT_PUBLIC_API_URL, if the API URL ever moves.
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  # A newer push makes an in-flight run pointless — except on main, where
+  # cancelling half-way could abandon a deploy midstream.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    # A real Postgres, not an in-memory stand-in. The schema is Postgres-specific
+    # -- V8 adds a tsvector generated column and a GIN index that H2 cannot
+    # express -- so this turns every run into a genuine migration test: Flyway
+    # applies V1 through V9 from scratch and Hibernate validates the result
+    # against the entities. A broken migration now fails here instead of on
+    # Railway. The major version tracks production (18.x).
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: agri
+          POSTGRES_PASSWORD: agri
+          POSTGRES_DB: agri_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/agri_test
+      SPRING_DATASOURCE_USERNAME: agri
+      SPRING_DATASOURCE_PASSWORD: agri
+      # The smoke suite registers and signs in far more often in a minute than a
+      # person would in an hour, and would otherwise trip its own rate limiter.
+      APP_RATE_LIMIT_LOGIN_ATTEMPTS: '1000'
+      APP_RATE_LIMIT_REGISTRATIONS: '1000'
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Generated per run rather than committed, so nothing that looks like a
+      # real secret ever lives in version control.
+      - name: Generate a throwaway JWT secret
+        run: echo "APP_JWT_SECRET=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      - name: Unit and slice tests
+        working-directory: backend
+        run: ./mvnw -B --no-transfer-progress verify
+
+      - name: Start the API
+        working-directory: backend
+        run: |
+          jar=$(ls target/*.jar | head -1)
+          nohup java -jar "$jar" > backend.log 2>&1 &
+          echo "$!" > app.pid
+          for _ in $(seq 1 60); do
+            if curl -sf http://localhost:8080/api/v1/health > /dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "The API never became healthy."
+          cat backend.log
+          exit 1
+
+      # No mail transport is configured here, so MailService writes verification
+      # codes to the log -- which is exactly where this suite reads them from.
+      # It covers the whole sign-up, verification and password-reset path,
+      # including the token-replay defence that unit tests did not catch.
+      - name: Verification and password-reset smoke tests
+        working-directory: backend
+        run: python3 scripts/verification_smoke.py backend.log
+
+      - name: Show the API log on failure
+        if: failure()
+        working-directory: backend
+        run: tail -n 200 backend.log
+
+      - name: Stop the API
+        if: always()
+        working-directory: backend
+        run: |
+          if [ -f app.pid ]; then kill "$(cat app.pid)" 2>/dev/null || true; fi
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
+          if-no-files-found: ignore
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # next build type-checks as it goes, so this covers tsc as well. The API
+      # URL is baked in at build time, which is why it has to be set here.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api-production-a2e75.up.railway.app' }}
+
+  deploy-api:
+    name: Deploy API
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-api
+      url: https://api-production-a2e75.up.railway.app
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the Railway CLI
+        run: npm install -g @railway/cli
+
+      # Railway builds the Dockerfile on its own servers. --ci streams the build
+      # log and exits on the build's own status, so a failed image fails the job.
+      - name: Deploy
+        working-directory: backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service api --ci
+
+      # Railway's own health check gates the rollout, but it watches the internal
+      # port. This confirms the public URL actually serves.
+      - name: Confirm the API is healthy
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -sf https://api-production-a2e75.up.railway.app/actuator/health \
+                 | grep -q '"status":"UP"'; then
+              echo "API reports UP"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "The API did not report UP within five minutes."
+          exit 1
+
+  deploy-web:
+    name: Deploy web
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: production-web
+      url: https://agriculture-knowledge.vercel.app
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the Vercel CLI
+        run: npm install -g vercel
+
+      # The same deploy scripts/deploy-frontend.ps1 does locally, without the
+      # OneDrive staging it needed to work around: a runner has no OneDrive, so
+      # the upload that fails from the local checkout simply works here.
+      - name: Deploy
+        working-directory: frontend
+        run: vercel deploy --prod --yes --token "${{ secrets.VERCEL_TOKEN }}"
+
+      - name: Confirm the site is serving
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://agriculture-knowledge.vercel.app/)
+          if [ "$code" != "200" ]; then
+            echo "The site returned HTTP $code."
+            exit 1
+          fi
+          echo "Site returned 200"
