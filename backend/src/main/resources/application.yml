@@ -33,14 +33,20 @@ spring:
       mail:
         smtp:
           auth: true
+          # Two ways to reach Gmail: 587 with STARTTLS, or 465 with implicit SSL.
+          # Configurable because some hosts block one port and not the other, and
+          # finding out which is a matter of trying rather than reading docs.
+          ssl:
+            enable: ${MAIL_SSL_ENABLE:false}
           starttls:
-            enable: true
-            required: true
+            enable: ${MAIL_STARTTLS_ENABLE:true}
+            required: ${MAIL_STARTTLS_ENABLE:true}
           # Without these a dead SMTP host hangs the request thread until the OS
           # gives up, which on a sign-up form looks like the site has frozen.
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
+          # 5s proved too tight for a cold TLS handshake across regions.
+          connectiontimeout: ${MAIL_TIMEOUT_MS:15000}
+          timeout: ${MAIL_TIMEOUT_MS:15000}
+          writetimeout: ${MAIL_TIMEOUT_MS:15000}
 
   # Google sign-in is deliberately not declared here. Spring Boot builds the
   # client registration from properties alone, so setting GOOGLE_CLIENT_ID and
@@ -70,6 +76,17 @@ app:
     login-window: ${APP_RATE_LIMIT_LOGIN_WINDOW:PT5M}
     registrations: ${APP_RATE_LIMIT_REGISTRATIONS:25}
     registration-window: ${APP_RATE_LIMIT_REGISTRATION_WINDOW:PT1H}
+
+  # How transactional email leaves.
+  #
+  # Brevo's HTTP API is preferred because Railway blocks outbound SMTP: both 587
+  # and 465 time out at the connection stage there, while the same container
+  # reaches Postgres and the wider internet fine. An HTTPS call on 443 is not
+  # blocked anywhere. SMTP below still works locally and on hosts that allow it.
+  mail:
+    brevo-api-key: ${BREVO_API_KEY:}
+    from: ${MAIL_FROM:}
+    from-name: ${MAIL_FROM_NAME:Agriculture Knowledge}
 
   jwt:
     # Base64-encoded, at least 32 bytes. Generate with: openssl rand -base64 32

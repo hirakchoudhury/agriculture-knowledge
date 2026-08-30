@@ -161,29 +161,57 @@ means a reset code cannot verify an address and vice versa.
 
 ## Sending email
 
-Verification and reset codes go out over Gmail SMTP.
+Verification and reset codes go out through **Brevo's HTTP API**, not SMTP.
 
-**If SMTP is not configured the code is written to the application log instead of
-sent.** That keeps local development working without credentials. It is also a
-serious hole in production - anyone with log access could take over any account - so
-the application logs an ERROR about it on startup when the prod profile is active.
+**Railway blocks outbound SMTP.** This is worth stating plainly because it costs
+an afternoon to discover:
 
-To configure Gmail you need an **App Password**, not your account password:
+| Attempt | Result |
+| ------- | ------ |
+| `smtp.gmail.com:587`, STARTTLS, 5s timeout | connection timeout |
+| `smtp.gmail.com:465`, implicit SSL, 20s timeout | connection timeout |
+| Same container to Neon in Ohio | fine |
+| Same container to the internet generally | fine |
 
-1. Google Account, then Security, and turn on 2-Step Verification if it is not on
-2. Security, then App passwords, and create one for "Mail"
-3. Set these, locally in `application-local.yml` or as variables on Railway:
+Bad credentials give an authentication error (`535`), not a connection timeout.
+Timeouts on two different SMTP ports, while everything else on the network works,
+means the platform is blocking the ports — standard on PaaS hosts to stop spam
+relay. No Gmail app password can fix it.
+
+An HTTP call to port 443 is indistinguishable from any other API request and goes
+straight out, so the transport is an interface with three implementations, chosen
+at startup in this order:
+
+1. **Brevo HTTP API**, when `BREVO_API_KEY` is set. The only one that works on
+   Railway.
+2. **SMTP**, when `spring.mail.host` and username are set. Works locally and on
+   hosts that permit it.
+3. **Log only**, when neither is. Local development needs no credentials at all.
+
+The startup log always names the transport in use, so the running configuration is
+never a guess.
+
+### Configuring Brevo
+
+1. Create an account at https://www.brevo.com — free, no card
+2. Verify your sender address at https://app.brevo.com/senders/list. Without this
+   the API accepts the request and then declines to deliver.
+3. Create a key at https://app.brevo.com/settings/keys/api (account name in the
+   top-right, then **SMTP & API**, then **API Keys**)
+4. Set these:
 
 ```
-MAIL_HOST=smtp.gmail.com
-MAIL_USERNAME=you@gmail.com
-MAIL_PASSWORD=the-16-character-app-password
+BREVO_API_KEY=xkeysib-...
+MAIL_FROM=your-verified-sender@example.com
 ```
 
-Gmail allows roughly 500 messages a day, which is ample early on. Deliverability is
-the real limitation: mail from a personal Gmail to strangers often lands in spam,
-and a verification code in spam looks like a broken site. Move to a transactional
-provider with a verified domain before that matters.
+Free tier is 300 messages a day and delivers to any address without owning a
+domain, which is what a public sign-up flow needs.
+
+**When no transport is configured the code is written to the application log
+instead of sent.** That keeps local work simple, but in production it means anyone
+with log access can take over any account, and sign-up is silently broken for real
+users — so the prod profile logs an ERROR about it on startup.
 
 ## Theme
 
