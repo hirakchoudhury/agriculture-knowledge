@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { ThemeToggle } from "@/components/theme-toggle";
 import type { ExamSummary } from "@/lib/types";
 
 type MenuName = "exams" | "more";
@@ -225,8 +224,6 @@ export function SiteHeader({ exams }: { exams: ExamSummary[] }) {
           </form>
 
           <div className="ml-auto flex items-center gap-3 text-sm md:ml-0">
-            <ThemeToggle />
-
             {status === "loading" && (
               <span className="hidden text-muted sm:inline">Checking session…</span>
             )}

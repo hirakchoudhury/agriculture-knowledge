@@ -3,6 +3,7 @@ import { Montserrat, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider, themeInitScript } from "@/lib/theme";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { fetchPublic } from "@/lib/public-api";
 import type { ExamSummary } from "@/lib/types";
 import "./globals.css";
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <AuthProvider>
             <SiteHeader exams={exams} />
             {children}
+            <SiteFooter />
           </AuthProvider>
         </ThemeProvider>
       </body>
