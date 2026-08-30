@@ -108,7 +108,13 @@ export function SiteHeader({ exams }: { exams: ExamSummary[] }) {
         document flow intact and costs nothing.
       */}
       <header className="sticky top-0 z-40 border-b border-line bg-background/85 backdrop-blur-md">
-        <nav className="mx-auto flex h-15 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
+        {/*
+          Full-bleed rather than boxed to a max width, so the logo and the
+          "Get started" button sit 16px from their respective edges -- the
+          reference site's header runs the full width of the viewport, and a
+          centred container left the primary call to action stranded 81px in.
+        */}
+        <nav className="flex h-15 w-full items-center gap-3 px-4">
           <button
             type="button"
             aria-label="Open menu"
