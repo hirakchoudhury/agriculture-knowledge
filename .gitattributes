@@ -1,0 +1,10 @@
+# Git's autocrlf would otherwise rewrite line-ending bytes inside binaries on
+# checkout, which corrupts them. Nothing here is text.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
