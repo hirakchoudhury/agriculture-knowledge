@@ -393,6 +393,20 @@ Keep the output to hand; it goes into Railway in the next step and nowhere else.
 
 ### 3. The frontend on Vercel
 
+**If this project lives inside OneDrive, deploy with `scripts/deploy-frontend.ps1`
+rather than running the CLI directly.** Deploying from a OneDrive path fails with a
+bare `fetch failed`: the deployment is created but the upload never completes, so it
+sits at `UNKNOWN` with `Builds: . [0ms]`. That was six failures across two days,
+both upload modes, with the payload trimmed to 362 bytes. Copying the project to a
+path outside OneDrive first worked on the first attempt. The likely cause is
+OneDrive's on-demand file hydration interfering with the reads the CLI makes while
+uploading.
+
+The script stages the project in `%TEMP%`, checks the `.vercel` link came across so
+it cannot accidentally create a second project, and deploys from there.
+
+For the first-time setup:
+
 1. **Add New → Project** → import the same repository.
 2. Set **Root Directory** to `frontend`.
 3. Add one variable: `NEXT_PUBLIC_API_URL` = your Railway domain, no trailing slash.
@@ -437,6 +451,11 @@ Then set `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID` and
   faster than a Node service would. Check the current terms.
 - **Vercel's free plan is non-commercial.** Fine now; relevant if you ever charge
   for this.
+- **Connecting GitHub needs a GitHub login on the Vercel account.** If you signed
+  up to Vercel with email, `vercel git connect` fails with "You need to add a Login
+  Connection to your GitHub account first". Add GitHub under Vercel account
+  settings, then connect the repo and set **Root Directory** to `frontend` — after
+  which every push deploys itself and the OneDrive problem above stops mattering.
 - **Uploads have nowhere to go.** There is no file upload in the app yet, and
   when you add one the files must go to something like Cloudinary, never the
   container's disk.
