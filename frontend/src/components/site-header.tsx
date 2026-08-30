@@ -106,8 +106,12 @@ export function SiteHeader({ exams }: { exams: ExamSummary[] }) {
         Sticky rather than fixed. Fixed would need a matching spacer on every
         page to stop the header covering the first heading; sticky keeps the
         document flow intact and costs nothing.
+
+        Opaque, not translucent. At 85% over the hero the fill resolved to
+        within a hair of the hero's own top colour, so the bar disappeared and
+        the "Get started" button read as floating loose on the page.
       */}
-      <header className="sticky top-0 z-40 border-b border-line bg-background/85 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-line bg-surface shadow-sm">
         {/*
           Full-bleed rather than boxed to a max width, so the logo and the
           "Get started" button sit 16px from their respective edges -- the

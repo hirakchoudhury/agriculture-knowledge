@@ -16,7 +16,7 @@
     defined only inside a media query never applies in the un-stamped "follow
     the system" state, which is what most visitors are in.
   */
-  --grad-hero: linear-gradient(168deg, #ffffff 0%, #f2f6ee 42%, #dfebda 100%);
+  --grad-hero: linear-gradient(168deg, #dceada 0%, #eaf1e6 45%, #f6f8f3 100%);
   --grad-accent: linear-gradient(135deg, #2f5d3a 0%, #4b8259 100%);
   --grad-band: linear-gradient(100deg, #e3ede0 0%, #eef3ea 100%);
   --grad-edge: linear-gradient(90deg, transparent, #c9d8c3, transparent);
@@ -42,7 +42,7 @@
     --warn: #d6a34c;
     --danger: #de8a76;
 
-    --grad-hero: linear-gradient(168deg, #172018 0%, #131a14 45%, #0d120e 100%);
+    --grad-hero: linear-gradient(168deg, #23301f 0%, #18211a 45%, #0f1410 100%);
     --grad-accent: linear-gradient(135deg, #8fbe7c 0%, #b6d9a6 100%);
     --grad-band: linear-gradient(100deg, #1b241c 0%, #141a15 100%);
     --grad-edge: linear-gradient(90deg, transparent, #35452f, transparent);
@@ -61,7 +61,7 @@
     --warn: #d6a34c;
     --danger: #de8a76;
 
-    --grad-hero: linear-gradient(168deg, #172018 0%, #131a14 45%, #0d120e 100%);
+    --grad-hero: linear-gradient(168deg, #23301f 0%, #18211a 45%, #0f1410 100%);
     --grad-accent: linear-gradient(135deg, #8fbe7c 0%, #b6d9a6 100%);
     --grad-band: linear-gradient(100deg, #1b241c 0%, #141a15 100%);
     --grad-edge: linear-gradient(90deg, transparent, #35452f, transparent);
