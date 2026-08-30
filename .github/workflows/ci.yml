@@ -1,20 +1,18 @@
-# Tests every push, deploys main.
+# Tests every push. Does not deploy.
 #
-# Deploys are CLI-driven rather than platform-driven: neither Railway nor Vercel
-# is connected to this repository, so nothing ships unless this workflow ships it.
-# That is deliberate — it means a red build cannot reach production.
+# Deployment is done by hand from a developer machine, where both CLIs are
+# already signed in:
 #
-# Repository secrets this needs (Settings -> Secrets and variables -> Actions):
+#   frontend   powershell -File scripts/deploy-frontend.ps1
+#              (stages outside OneDrive first -- see the script for why)
 #
-#   RAILWAY_TOKEN       a Railway *project* token, from the project's Settings ->
-#                       Tokens. Not a personal account token.
-#   VERCEL_TOKEN        https://vercel.com/account/tokens
-#   VERCEL_ORG_ID       both are in frontend/.vercel/project.json, which is
-#   VERCEL_PROJECT_ID   gitignored, so they have to be copied in by hand.
+#   backend    cd backend && railway up --service api --ci
+#              (only needed when something under backend/src changes)
 #
-# Optional repository *variable*: NEXT_PUBLIC_API_URL, if the API URL ever moves.
+# So this workflow's job is to tell you whether main is safe to deploy, not to
+# deploy it. Nothing here needs a secret.
 
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -157,75 +155,3 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api-production-a2e75.up.railway.app' }}
-
-  deploy-api:
-    name: Deploy API
-    needs: [backend, frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment:
-      name: production-api
-      url: https://api-production-a2e75.up.railway.app
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install the Railway CLI
-        run: npm install -g @railway/cli
-
-      # Railway builds the Dockerfile on its own servers. --ci streams the build
-      # log and exits on the build's own status, so a failed image fails the job.
-      - name: Deploy
-        working-directory: backend
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service api --ci
-
-      # Railway's own health check gates the rollout, but it watches the internal
-      # port. This confirms the public URL actually serves.
-      - name: Confirm the API is healthy
-        run: |
-          for _ in $(seq 1 30); do
-            if curl -sf https://api-production-a2e75.up.railway.app/actuator/health \
-                 | grep -q '"status":"UP"'; then
-              echo "API reports UP"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "The API did not report UP within five minutes."
-          exit 1
-
-  deploy-web:
-    name: Deploy web
-    needs: [backend, frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment:
-      name: production-web
-      url: https://agriculture-knowledge.vercel.app
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install the Vercel CLI
-        run: npm install -g vercel
-
-      # The same deploy scripts/deploy-frontend.ps1 does locally, without the
-      # OneDrive staging it needed to work around: a runner has no OneDrive, so
-      # the upload that fails from the local checkout simply works here.
-      - name: Deploy
-        working-directory: frontend
-        run: vercel deploy --prod --yes --token "${{ secrets.VERCEL_TOKEN }}"
-
-      - name: Confirm the site is serving
-        run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' https://agriculture-knowledge.vercel.app/)
-          if [ "$code" != "200" ]; then
-            echo "The site returned HTTP $code."
-            exit 1
-          fi
-          echo "Site returned 200"
