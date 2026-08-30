@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider, themeInitScript } from "@/lib/theme";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
@@ -25,12 +26,24 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/*
+          Applies the stored theme before first paint. Without it the page
+          renders light and then corrects itself on hydration, which is the
+          flash of wrong theme. suppressHydrationWarning above is required
+          because this script legitimately changes <html> before React sees it.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <SiteHeader />
-          {children}
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SiteHeader />
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

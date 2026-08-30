@@ -12,8 +12,16 @@
   --danger: #9c3a2b;
 }
 
+/*
+  Three states, not two. An explicit choice stamps data-theme on <html>; the
+  default "follow the system" setting stamps nothing, so only the media query
+  separates light from dark there.
+
+  The :not([data-theme="light"]) guard is what lets someone on a dark OS choose
+  light and actually get it.
+*/
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0f1410;
     --surface: #161c17;
     --foreground: #e7ede4;
@@ -24,6 +32,19 @@
     --warn: #d6a34c;
     --danger: #de8a76;
   }
+}
+
+/* An explicit dark choice wins on a light OS. */
+:root[data-theme="dark"] {
+    --background: #0f1410;
+    --surface: #161c17;
+    --foreground: #e7ede4;
+    --muted: #91a093;
+    --line: #2a342c;
+    --accent: #8fbe7c;
+    --accent-soft: #1e2a1d;
+    --warn: #d6a34c;
+    --danger: #de8a76;
 }
 
 @theme inline {
@@ -43,6 +64,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  transition: background-color 0.15s ease, color 0.15s ease;
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -137,4 +159,10 @@ body {
 .prose-agri hr {
   border: 0;
   border-top: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
 }

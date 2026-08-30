@@ -45,6 +45,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return respond(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
 	}
 
+	/**
+	 * Distinct from a wrong password so the client can send the person to the
+	 * verification screen instead of telling them their credentials were wrong.
+	 */
+	@ExceptionHandler(EmailNotVerifiedException.class)
+	ResponseEntity<ApiError> onEmailNotVerified(EmailNotVerifiedException ex, HttpServletRequest request) {
+		return respond(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(ConflictException.class)
 	ResponseEntity<ApiError> onConflict(ConflictException ex, HttpServletRequest request) {
 		return respond(HttpStatus.CONFLICT, ex.getMessage(), request);

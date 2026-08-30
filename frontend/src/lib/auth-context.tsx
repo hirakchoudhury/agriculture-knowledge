@@ -11,7 +11,7 @@ import {
 } from "react";
 import { apiFetch, apiPost, refreshSession } from "./api";
 import { onAccessTokenChange, setAccessToken } from "./token-store";
-import type { AuthResponse, User } from "./types";
+import type { AuthResponse, RegisterResponse, User } from "./types";
 
 type Status = "loading" | "authenticated" | "anonymous";
 
@@ -20,7 +20,12 @@ type AuthContextValue = {
   status: Status;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  /** Returns rather than signing in: the account is unusable until verified. */
+  register: (email: string, password: string, name: string) => Promise<RegisterResponse>;
+  verifyEmail: (email: string, code: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   /** Used by the Google callback page, which receives a token rather than credentials. */
   adoptToken: (token: string) => Promise<void>;
@@ -85,12 +90,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string, name: string) => {
-      adoptSession(
-        await apiPost<AuthResponse>("/api/v1/auth/register", { email, password, name }),
-      );
+    async (email: string, password: string, name: string) =>
+      apiPost<RegisterResponse>("/api/v1/auth/register", { email, password, name }),
+    [],
+  );
+
+  const verifyEmail = useCallback(
+    async (email: string, code: string) => {
+      // Verifying signs them in, so they are not asked for the password they
+      // typed thirty seconds ago.
+      adoptSession(await apiPost<AuthResponse>("/api/v1/auth/verify-email", { email, code }));
     },
     [adoptSession],
+  );
+
+  const resendVerification = useCallback(
+    async (email: string) => {
+      await apiPost<void>("/api/v1/auth/resend-verification", { email });
+    },
+    [],
+  );
+
+  const forgotPassword = useCallback(async (email: string) => {
+    await apiPost<void>("/api/v1/auth/forgot-password", { email });
+  }, []);
+
+  const resetPassword = useCallback(
+    async (email: string, code: string, newPassword: string) => {
+      await apiPost<void>("/api/v1/auth/reset-password", { email, code, newPassword });
+    },
+    [],
   );
 
   const adoptToken = useCallback(async (token: string) => {
@@ -119,10 +148,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: user?.role === "ADMIN",
       login,
       register,
+      verifyEmail,
+      resendVerification,
+      forgotPassword,
+      resetPassword,
       logout,
       adoptToken,
     }),
-    [user, status, login, register, logout, adoptToken],
+    [user, status, login, register, verifyEmail, resendVerification, forgotPassword,
+      resetPassword, logout, adoptToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

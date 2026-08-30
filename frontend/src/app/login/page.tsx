@@ -26,6 +26,9 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(
     OAUTH_ERRORS[searchParams.get("error") ?? ""] ?? null,
   );
+  // A 403 here means the account exists and the password was right, but the
+  // address was never verified. That deserves a way forward, not just an error.
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -36,11 +39,16 @@ function LoginForm() {
       await login(email, password);
       router.push("/me");
     } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "Could not reach the server. Is the API running?",
-      );
+      if (caught instanceof ApiError && caught.status === 403) {
+        setNeedsVerification(true);
+        setError(caught.message);
+      } else {
+        setError(
+          caught instanceof ApiError
+            ? caught.message
+            : "Could not reach the server. Is the API running?",
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -80,6 +88,15 @@ function LoginForm() {
           </p>
         )}
 
+        {needsVerification && (
+          <Link
+            href={`/verify?email=${encodeURIComponent(email.trim())}`}
+            className="text-sm text-accent underline underline-offset-4"
+          >
+            Enter your verification code
+          </Link>
+        )}
+
         <button
           type="submit"
           disabled={submitting}
@@ -88,6 +105,13 @@ function LoginForm() {
           {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      <Link
+        href="/forgot-password"
+        className="mt-4 inline-block text-sm text-muted underline underline-offset-4 hover:text-foreground"
+      >
+        Forgot your password?
+      </Link>
 
       <div className="my-6 flex items-center gap-3 text-xs text-muted">
         <span className="h-px flex-1 bg-line" />

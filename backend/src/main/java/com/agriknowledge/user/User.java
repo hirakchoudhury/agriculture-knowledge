@@ -50,6 +50,16 @@ public class User {
 	@Column(nullable = false)
 	private boolean enabled = true;
 
+	/**
+	 * Whether the person has proved they can read mail at this address.
+	 *
+	 * <p>Accounts that predate verification were marked true by the migration:
+	 * locking people out of an account they already use, for a rule that did not
+	 * exist when they signed up, is not a defensible trade.
+	 */
+	@Column(name = "email_verified", nullable = false)
+	private boolean emailVerified;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -76,6 +86,8 @@ public class User {
 		user.avatarUrl = avatarUrl;
 		user.provider = AuthProvider.GOOGLE;
 		user.providerId = googleSubject;
+		// Google already proved the address; asking again would be theatre.
+		user.emailVerified = true;
 		return user;
 	}
 
@@ -109,6 +121,11 @@ public class User {
 
 	public String getPasswordHash() {
 		return passwordHash;
+	}
+
+	/** Only reachable through the reset flow, which requires a code from the inbox. */
+	public void setPasswordHash(String passwordHash) {
+		this.passwordHash = passwordHash;
 	}
 
 	public String getName() {
@@ -149,6 +166,14 @@ public class User {
 
 	public boolean isEnabled() {
 		return enabled;
+	}
+
+	public boolean isEmailVerified() {
+		return emailVerified;
+	}
+
+	public void markEmailVerified() {
+		this.emailVerified = true;
 	}
 
 	public Instant getCreatedAt() {

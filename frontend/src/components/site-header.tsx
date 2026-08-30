@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function SiteHeader() {
   const { user, status, isAdmin, logout } = useAuth();
@@ -34,6 +35,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-4 text-sm">
+          <ThemeToggle />
           {status === "loading" && <span className="text-muted">Checking session…</span>}
 
           {status === "anonymous" && (

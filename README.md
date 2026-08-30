@@ -111,6 +111,90 @@ application starts fine without them. To enable it:
    SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=...
    ```
 
+## Passwords, verification and reset
+
+**Password rules.** At least 8 characters, with a capital letter, a number and a
+symbol - enforced by one `@StrongPassword` annotation used by both registration and
+reset, so the two cannot drift apart. The validator checks each rule separately so
+the error says *which* rule failed rather than a flat "not strong enough"; the
+sign-up form shows the same checklist live as you type.
+
+Worth knowing: composition rules like these are weaker against guessing than a
+plain length minimum, and they reliably push people towards predictable
+substitutions. Current NIST guidance prefers length. This is implemented as asked
+because it is what exam portal users expect, but a longer minimum would be stronger.
+
+**Email verification.** Registration creates the account and emails a 6-digit code;
+it deliberately returns **no session**, because an unverified account cannot do
+anything. Entering the code verifies and signs them in together, so they are not
+asked for the password they typed a minute ago.
+
+- Codes are stored as SHA-256 hashes, never in the clear. A six-digit code is weak
+  enough by itself without a leaked table handing over live ones.
+- Five wrong guesses burns the code. A million possibilities is brute-forceable in
+  seconds without a ceiling.
+- Issuing a new code voids the outstanding one, so only ever one is live.
+- Codes expire after 15 minutes.
+- Signing in unverified returns **403 with a distinguishable message**, so the
+  client can offer the code screen rather than claiming the password was wrong. The
+  check happens *after* the password matches, or it would reveal which addresses are
+  registered.
+- Accounts that existed before this feature were marked verified by the migration.
+  Locking people out of an account they already use, for a rule that did not exist
+  when they signed up, is not defensible.
+- Google accounts arrive already verified. Google proved the address.
+
+**Password reset.** Same code mechanism, different purpose - the `purpose` column
+means a reset code cannot verify an address and vice versa.
+
+- `forgot-password` returns **204 whatever the address is**. Saying "no such
+  account" turns the endpoint into a way to discover who has registered.
+- Resetting revokes every refresh token, so no session can be renewed.
+- **Known window:** an access token issued before the reset keeps working until it
+  expires, up to 15 minutes. That is inherent to stateless JWTs - nothing consults
+  the database on a normal request, which is what makes them fast. Closing it would
+  mean a database lookup on every authenticated call, and with the API in Amsterdam
+  and Neon in Ohio that is ~90ms added to everything. The smoke test asserts this
+  behaviour explicitly rather than leaving it implied.
+- Resetting also marks the address verified: reaching the inbox proves it as surely
+  as the sign-up code does.
+
+## Sending email
+
+Verification and reset codes go out over Gmail SMTP.
+
+**If SMTP is not configured the code is written to the application log instead of
+sent.** That keeps local development working without credentials. It is also a
+serious hole in production - anyone with log access could take over any account - so
+the application logs an ERROR about it on startup when the prod profile is active.
+
+To configure Gmail you need an **App Password**, not your account password:
+
+1. Google Account, then Security, and turn on 2-Step Verification if it is not on
+2. Security, then App passwords, and create one for "Mail"
+3. Set these, locally in `application-local.yml` or as variables on Railway:
+
+```
+MAIL_HOST=smtp.gmail.com
+MAIL_USERNAME=you@gmail.com
+MAIL_PASSWORD=the-16-character-app-password
+```
+
+Gmail allows roughly 500 messages a day, which is ample early on. Deliverability is
+the real limitation: mail from a personal Gmail to strangers often lands in spam,
+and a verification code in spam looks like a broken site. Move to a transactional
+provider with a verified domain before that matters.
+
+## Theme
+
+Light, dark, or follow the system - three states, not a two-way switch, because a
+toggle cannot express "match my device", which is what most people want and the only
+setting that keeps up when the phone switches at sunset.
+
+The choice is stored in `localStorage` and applied by a tiny script in `<head>`
+before first paint, which is what prevents the flash of the wrong theme on load.
+An explicit choice beats the OS setting in both directions.
+
 ## How authentication works
 
 - **Access token**: a 15-minute HMAC-signed JWT, returned in the response body and
@@ -138,6 +222,10 @@ application starts fine without them. To enable it:
 | POST   | `/api/v1/auth/logout`    | cookie | 204, revokes and clears the cookie     |
 | GET    | `/api/v1/users/me`       | user   | Live profile row, not the token claims |
 | PATCH  | `/api/v1/users/me`       | user   | Name and avatar                        |
+| POST   | `/api/v1/auth/verify-email` | public | Code from the email; signs them in  |
+| POST   | `/api/v1/auth/resend-verification` | public | Always 204                   |
+| POST   | `/api/v1/auth/forgot-password` | public | Always 204                       |
+| POST   | `/api/v1/auth/reset-password` | public | Code plus a new password          |
 | GET    | `/api/v1/exams`          | public | With topic counts                      |
 | GET    | `/api/v1/exams/{slug}`   | public | Includes the syllabus tree             |
 | GET    | `/api/v1/topics`         | public | The whole topic forest                 |

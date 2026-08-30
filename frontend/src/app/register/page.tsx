@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Field } from "@/components/field";
+import { PasswordRules } from "@/components/password-rules";
 import { ApiError, googleSignInUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -23,7 +24,8 @@ export default function RegisterPage() {
     setError(null);
     try {
       await register(email, password, name);
-      router.push("/me");
+      // No session yet: the account is unusable until the emailed code is entered.
+      router.push(`/verify?email=${encodeURIComponent(email.trim())}`);
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -55,15 +57,17 @@ export default function RegisterPage() {
           onChange={setEmail}
           autoComplete="email"
         />
-        <Field
-          id="password"
-          label="Password"
-          type="password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="new-password"
-          hint="At least 10 characters. Length matters more than symbols."
-        />
+        <div>
+          <Field
+            id="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+          />
+          <PasswordRules password={password} />
+        </div>
 
         {error && (
           <p role="alert" className="text-sm text-danger">

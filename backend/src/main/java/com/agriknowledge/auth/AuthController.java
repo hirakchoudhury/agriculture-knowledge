@@ -2,8 +2,13 @@ package com.agriknowledge.auth;
 
 import com.agriknowledge.auth.dto.AuthResponse;
 import com.agriknowledge.auth.dto.LoginRequest;
+import com.agriknowledge.auth.dto.EmailOnlyRequest;
 import com.agriknowledge.auth.dto.RegisterRequest;
+import com.agriknowledge.auth.dto.RegisterResponse;
+import com.agriknowledge.auth.dto.ResetPasswordRequest;
+import com.agriknowledge.auth.dto.VerifyEmailRequest;
 import com.agriknowledge.auth.dto.UserResponse;
+import com.agriknowledge.auth.VerificationService;
 import com.agriknowledge.auth.jwt.JwtProperties;
 import com.agriknowledge.common.ClientAddress;
 import com.agriknowledge.common.SlidingWindowRateLimiter;
@@ -18,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -41,14 +47,61 @@ public class AuthController {
 		this.registrationLimiter = registrationLimiter;
 	}
 
+	/** Creates the account and emails a code. No session until the code is entered. */
 	@PostMapping("/register")
-	ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
+	@ResponseStatus(HttpStatus.CREATED)
+	RegisterResponse register(@Valid @RequestBody RegisterRequest request,
 			HttpServletRequest httpRequest) {
-		String caller = ClientAddress.of(httpRequest);
-		registrationLimiter.check(caller);
+		registrationLimiter.check(ClientAddress.of(httpRequest));
 
-		var session = authService.register(request, httpRequest.getHeader(HttpHeaders.USER_AGENT));
-		return respondWithSession(session, HttpStatus.CREATED);
+		var user = authService.register(request);
+		return new RegisterResponse(
+				user.getEmail(),
+				(int) VerificationService.CODE_LIFETIME.toMinutes(),
+				"Check your email for a 6-digit code to finish signing up.");
+	}
+
+	@PostMapping("/verify-email")
+	ResponseEntity<AuthResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest request,
+			HttpServletRequest httpRequest) {
+		// Rate limited like a sign-in: this endpoint accepts a guessable secret.
+		loginLimiter.check(ClientAddress.of(httpRequest));
+
+		var session = authService.verifyEmail(request, httpRequest.getHeader(HttpHeaders.USER_AGENT));
+		return respondWithSession(session, HttpStatus.OK);
+	}
+
+	/**
+	 * Always 204, whether or not the address exists. Anything else turns this into
+	 * a way to find out who has an account.
+	 */
+	@PostMapping("/resend-verification")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void resendVerification(@Valid @RequestBody EmailOnlyRequest request,
+			HttpServletRequest httpRequest) {
+		registrationLimiter.check(ClientAddress.of(httpRequest));
+		authService.resendVerification(request.email());
+	}
+
+	/** Always 204, for the same reason. */
+	@PostMapping("/forgot-password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void forgotPassword(@Valid @RequestBody EmailOnlyRequest request,
+			HttpServletRequest httpRequest) {
+		registrationLimiter.check(ClientAddress.of(httpRequest));
+		authService.forgotPassword(request.email());
+	}
+
+	/**
+	 * Returns no session on purpose. Making them sign in with the new password
+	 * confirms it is the one they think they set.
+	 */
+	@PostMapping("/reset-password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void resetPassword(@Valid @RequestBody ResetPasswordRequest request,
+			HttpServletRequest httpRequest) {
+		loginLimiter.check(ClientAddress.of(httpRequest));
+		authService.resetPassword(request);
 	}
 
 	@PostMapping("/login")

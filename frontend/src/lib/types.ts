@@ -322,3 +322,13 @@ export type AdminStats = {
     likeCount: number;
   }>;
 };
+
+/**
+ * Mirrors auth/dto/RegisterResponse.java. Registration returns no tokens: the
+ * account cannot be used until the emailed code is entered.
+ */
+export type RegisterResponse = {
+  email: string;
+  codeValidMinutes: number;
+  message: string;
+};

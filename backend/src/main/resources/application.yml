@@ -21,6 +21,27 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  # Gmail SMTP. Leave host and username unset and the application still starts —
+  # codes go to the log instead of the inbox, which is what local work wants.
+  # The password must be a Google App Password, not the account password.
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          # Without these a dead SMTP host hangs the request thread until the OS
+          # gives up, which on a sign-up form looks like the site has frozen.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
   # Google sign-in is deliberately not declared here. Spring Boot builds the
   # client registration from properties alone, so setting GOOGLE_CLIENT_ID and
   # GOOGLE_CLIENT_SECRET (see README) switches it on, and leaving them unset

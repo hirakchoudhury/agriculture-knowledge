@@ -17,3 +17,15 @@ app:
   jwt:
     # openssl rand -base64 32
     secret: REPLACE_WITH_A_BASE64_SECRET
+
+# Optional. Without these, verification and reset codes are written to the
+# application log instead of emailed, which is usually what you want locally.
+#
+# For Gmail you need an App Password (Google Account > Security > 2-Step
+# Verification > App passwords), not your normal password.
+#
+# spring:
+#   mail:
+#     host: smtp.gmail.com
+#     username: you@gmail.com
+#     password: abcdefghijklmnop
