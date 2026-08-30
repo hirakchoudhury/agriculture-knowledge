@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HeroCta } from "@/components/hero-cta";
 import { fetchPublic } from "@/lib/public-api";
 import type { ExamSummary, MaterialSummary, PageResponse } from "@/lib/types";
 
@@ -36,20 +37,7 @@ export default async function Home() {
             count towards and the topic they cover.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/materials"
-              className="btn-grad rounded-full px-6 py-2.5 text-sm font-semibold"
-            >
-              Browse the library
-            </Link>
-            <Link
-              href="/materials?type=QUIZ"
-              className="rounded-full border border-line bg-surface px-6 py-2.5 text-sm font-semibold transition-colors hover:border-accent"
-            >
-              Practice quizzes
-            </Link>
-          </div>
+          <HeroCta />
         </div>
       </section>
 

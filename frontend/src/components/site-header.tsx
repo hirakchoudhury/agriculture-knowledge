@@ -108,15 +108,15 @@ export function SiteHeader({ exams }: { exams: ExamSummary[] }) {
         document flow intact and costs nothing.
 
         Opaque, not translucent. At 85% over the hero the fill resolved to
-        within a hair of the hero's own top colour, so the bar disappeared and
-        the "Get started" button read as floating loose on the page.
+        within a hair of the hero's own top colour, so the bar stopped reading
+        as a bar at all and its contents looked loose on the page.
       */}
       <header className="sticky top-0 z-40 border-b border-line bg-surface shadow-sm">
         {/*
           Full-bleed rather than boxed to a max width, so the logo and the
-          "Get started" button sit 16px from their respective edges -- the
-          reference site's header runs the full width of the viewport, and a
-          centred container left the primary call to action stranded 81px in.
+          controls sit 16px from their respective edges. The reference site's
+          header runs the full width of the viewport; a centred container left
+          everything stranded 81px in on a 1265px bar.
         */}
         <nav className="flex h-15 w-full items-center gap-3 px-4">
           <button
@@ -231,18 +231,15 @@ export function SiteHeader({ exams }: { exams: ExamSummary[] }) {
               <span className="hidden text-muted sm:inline">Checking session…</span>
             )}
 
+            {/*
+              No sign-up button here on purpose: the call to action belongs on
+              the page, where it can be the largest thing in the hero rather
+              than a 32px pill competing with the navigation.
+            */}
             {status === "anonymous" && (
-              <>
-                <Link href="/login" className="hidden text-muted hover:text-foreground sm:inline">
-                  Sign in
-                </Link>
-                <Link
-                  href="/register"
-                  className="btn-grad rounded-full px-4 py-1.5 font-medium"
-                >
-                  Get started
-                </Link>
-              </>
+              <Link href="/login" className="text-muted hover:text-foreground">
+                Sign in
+              </Link>
             )}
 
             {status === "authenticated" && user && (
@@ -360,22 +357,13 @@ export function SiteHeader({ exams }: { exams: ExamSummary[] }) {
 
             <div className="border-t border-line px-5 py-4">
               {status === "anonymous" && (
-                <div className="flex flex-col gap-2">
-                  <Link
-                    href="/register"
-                    onClick={() => setDrawerOpen(false)}
-                    className="btn-grad rounded-full px-4 py-2 text-center text-sm font-medium"
-                  >
-                    Get started
-                  </Link>
-                  <Link
-                    href="/login"
-                    onClick={() => setDrawerOpen(false)}
-                    className="rounded-full border border-line px-4 py-2 text-center text-sm hover:border-accent"
-                  >
-                    Sign in
-                  </Link>
-                </div>
+                <Link
+                  href="/login"
+                  onClick={() => setDrawerOpen(false)}
+                  className="block rounded-full border border-line px-4 py-2 text-center text-sm hover:border-accent"
+                >
+                  Sign in
+                </Link>
               )}
 
               {status === "authenticated" && (
