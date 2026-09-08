@@ -77,7 +77,7 @@ export type ExamDetail = {
   syllabus: TopicNode[];
 };
 
-export type MaterialType = "ARTICLE" | "VIDEO" | "QUIZ";
+export type MaterialType = "ARTICLE" | "VIDEO" | "QUIZ" | "DOCUMENT";
 export type MaterialStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type Difficulty = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
@@ -114,7 +114,9 @@ export type TagRef = { id: number; name: string; slug: string };
 
 /**
  * Mirrors material/dto/MaterialDetail.java. One shape for every type: bodyHtml and
- * readingMinutes are set for ARTICLE, youtubeId and durationSeconds for VIDEO.
+ * readingMinutes are set for ARTICLE, youtubeId and durationSeconds for VIDEO,
+ * and the file fields for DOCUMENT. The storage key is deliberately not exposed --
+ * downloads go through /materials/{slug}/download, which signs a short-lived URL.
  */
 export type MaterialDetail = {
   id: number;
@@ -137,6 +139,10 @@ export type MaterialDetail = {
   readingMinutes: number | null;
   youtubeId: string | null;
   durationSeconds: number | null;
+  fileName: string | null;
+  fileSizeBytes: number | null;
+  pageCount: number | null;
+  paperYear: number | null;
   likedByMe: boolean;
 };
 

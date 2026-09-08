@@ -7,12 +7,14 @@ import com.agriknowledge.material.MaterialService;
 import com.agriknowledge.material.MaterialStatus;
 import com.agriknowledge.material.MaterialType;
 import com.agriknowledge.material.dto.ArticleRequest;
+import com.agriknowledge.material.dto.DocumentRequest;
 import com.agriknowledge.material.dto.MaterialDetail;
 import com.agriknowledge.material.dto.MaterialStatusRequest;
 import com.agriknowledge.material.dto.MaterialSummary;
 import com.agriknowledge.material.dto.VideoRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,7 +27,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 
 @RestController
 @RequestMapping("/api/v1/admin/materials")
@@ -63,6 +70,27 @@ public class AdminMaterialController {
 	MaterialDetail createVideo(@Valid @RequestBody VideoRequest request,
 			@AuthenticationPrincipal AuthPrincipal principal) {
 		return materials.createVideo(request, principal.userId());
+	}
+
+	/**
+	 * Multipart because a PDF cannot travel in JSON without base64 inflating it by
+	 * a third. The metadata rides along as a JSON part, so it still gets the same
+	 * bean validation as every other create endpoint.
+	 */
+	@PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	MaterialDetail createDocument(
+			@Valid @RequestPart("data") DocumentRequest request,
+			@RequestPart("file") MultipartFile file,
+			@AuthenticationPrincipal AuthPrincipal principal) {
+		try {
+			return materials.createDocument(
+					request, file.getBytes(), file.getOriginalFilename(), principal.userId());
+		}
+		catch (IOException ex) {
+			// The upload was cut off mid-stream. Nothing has been stored.
+			throw new UncheckedIOException("Could not read the uploaded file", ex);
+		}
 	}
 
 	@PutMapping("/articles/{id}")

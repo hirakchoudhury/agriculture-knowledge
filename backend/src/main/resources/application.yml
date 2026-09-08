@@ -21,6 +21,14 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+  servlet:
+    multipart:
+      # Boot defaults to 1MB, which rejects essentially every scanned paper. The
+      # service enforces the real limit against the actual bytes; these exist so
+      # an oversized upload is refused by the container before it is buffered.
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:26MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:27MB}
+
   # Gmail SMTP. Leave host and username unset and the application still starts —
   # codes go to the log instead of the inbox, which is what local work wants.
   # The password must be a Google App Password, not the account password.
@@ -87,6 +95,22 @@ app:
     brevo-api-key: ${BREVO_API_KEY:}
     from: ${MAIL_FROM:}
     from-name: ${MAIL_FROM_NAME:Agriculture Knowledge}
+
+  # Where uploaded PDFs live.
+  #
+  # Cloudflare R2 rather than S3 because downloads are nearly all the traffic a
+  # question-paper archive produces, and R2 does not charge for egress. With
+  # these unset the application falls back to a local directory, which is fine
+  # locally and useless in production: this host replaces its filesystem on every
+  # deploy, so uploads would silently vanish. StorageConfig logs an error if it
+  # ever finds itself on local disk under the prod profile.
+  storage:
+    r2:
+      account-id: ${R2_ACCOUNT_ID:}
+      access-key-id: ${R2_ACCESS_KEY_ID:}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+      bucket: ${R2_BUCKET:}
+    local-dir: ${UPLOAD_LOCAL_DIR:./var/documents}
 
   jwt:
     # Base64-encoded, at least 32 bytes. Generate with: openssl rand -base64 32

@@ -12,7 +12,14 @@ const TYPE_LABEL: Record<string, string> = {
   ARTICLE: "Article",
   VIDEO: "Video lesson",
   QUIZ: "Practice quiz",
+  DOCUMENT: "Paper",
 };
+
+function formatSize(bytes: number) {
+  return bytes < 1024 * 1024
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +73,33 @@ export default async function MaterialPage({ params }: PageProps<"/materials/[sl
       {material.type === "QUIZ" && (
         <div className="mt-8">
           <QuizStartCard slug={material.slug} />
+        </div>
+      )}
+
+      {material.type === "DOCUMENT" && (
+        <div className="mt-8 rounded-md border border-line bg-surface p-6">
+          <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted">
+            {material.paperYear ? `${material.paperYear} paper` : "Document"}
+          </p>
+          <p className="mt-2 font-medium">{material.fileName ?? "Download"}</p>
+          <p className="mt-1 text-sm text-muted">
+            PDF
+            {material.fileSizeBytes !== null && ` · ${formatSize(material.fileSizeBytes)}`}
+            {material.pageCount !== null && ` · ${material.pageCount} pages`}
+          </p>
+
+          {/*
+            A plain link, not a fetch: the endpoint answers with a redirect to a
+            short-lived signed URL, and following that is exactly what a browser
+            does well. Downloading through JavaScript would buffer the whole file
+            in memory first for no benefit.
+          */}
+          <a
+            href={`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/materials/${material.slug}/download`}
+            className="btn-grad mt-5 inline-block rounded-full px-6 py-2.5 text-sm font-semibold"
+          >
+            Download PDF
+          </a>
         </div>
       )}
 

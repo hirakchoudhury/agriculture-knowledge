@@ -4,5 +4,8 @@ package com.agriknowledge.material;
 public enum MaterialType {
 	ARTICLE,
 	VIDEO,
-	QUIZ
+	QUIZ,
+
+	/** A PDF, currently used for previous year papers. */
+	DOCUMENT
 }

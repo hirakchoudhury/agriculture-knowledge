@@ -4,6 +4,12 @@ import com.agriknowledge.auth.jwt.AuthPrincipal;
 import com.agriknowledge.common.PageResponse;
 import com.agriknowledge.material.dto.MaterialDetail;
 import com.agriknowledge.material.dto.MaterialSummary;
+import com.agriknowledge.material.storage.DocumentStorage;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MaterialController {
 
 	private final MaterialService materials;
+	private final DocumentStorage storage;
 
-	public MaterialController(MaterialService materials) {
+	public MaterialController(MaterialService materials, DocumentStorage storage) {
 		this.materials = materials;
+		this.storage = storage;
 	}
 
 	@GetMapping
@@ -45,6 +53,29 @@ public class MaterialController {
 		// Admins may follow a link to their own draft; everyone else gets a 404.
 		return materials.getBySlug(slug, principal != null && principal.isAdmin(),
 				principal == null ? null : principal.userId());
+	}
+
+	/**
+	 * Downloads a PDF.
+	 *
+	 * <p>Redirects to a short-lived signed URL where the store can produce one, so
+	 * the bytes travel from the object store to the reader without passing through
+	 * this container at all. Only falls back to streaming for the local store,
+	 * which cannot sign.
+	 */
+	@GetMapping("/{slug}/download")
+	ResponseEntity<?> download(@PathVariable String slug) {
+		MaterialService.DownloadTarget target = materials.downloadTarget(slug);
+
+		if (target.signedUrl() != null) {
+			return ResponseEntity.status(302).location(target.signedUrl()).build();
+		}
+
+		return ResponseEntity.ok()
+				.contentType(MediaType.APPLICATION_PDF)
+				.header(HttpHeaders.CONTENT_DISPOSITION,
+						ContentDisposition.attachment().filename(target.fileName()).build().toString())
+				.body(new InputStreamResource(storage.open(target.storageKey())));
 	}
 
 }

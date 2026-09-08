@@ -29,3 +29,7 @@ Thumbs.db
 # --- local secrets ------------------------------------------------------------
 # Real database credentials and the JWT secret live here; the .example is committed.
 backend/src/main/resources/application-local.yml
+
+# --- uploaded files ----------------------------------------------------------
+# Where LocalDocumentStorage writes during local work. Production uses R2.
+backend/var/

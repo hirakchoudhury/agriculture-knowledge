@@ -80,6 +80,12 @@ export default function AdminMaterialsPage() {
           >
             New quiz
           </Link>
+          <Link
+            href="/admin/materials/new/document"
+            className="rounded-md border border-line px-3 py-1.5 text-sm font-medium hover:border-accent"
+          >
+            New paper
+          </Link>
         </div>
       </section>
 
@@ -105,6 +111,7 @@ export default function AdminMaterialsPage() {
           <option value="ARTICLE">Articles</option>
           <option value="VIDEO">Videos</option>
           <option value="QUIZ">Quizzes</option>
+          <option value="DOCUMENT">Papers</option>
         </select>
       </div>
 

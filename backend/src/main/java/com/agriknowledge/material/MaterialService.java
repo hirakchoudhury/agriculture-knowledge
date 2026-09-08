@@ -10,7 +10,9 @@ import com.agriknowledge.common.PageResponse;
 import com.agriknowledge.common.Slugs;
 import com.agriknowledge.engagement.MaterialLikeRepository;
 import com.agriknowledge.material.dto.ArticleRequest;
+import com.agriknowledge.material.dto.DocumentRequest;
 import com.agriknowledge.material.dto.MaterialDetail;
+import com.agriknowledge.material.storage.DocumentStorage;
 import com.agriknowledge.material.dto.MaterialSummary;
 import com.agriknowledge.material.dto.VideoRequest;
 import com.agriknowledge.user.User;
@@ -58,10 +60,11 @@ public class MaterialService {
 	// alternative is a second round trip per page purely to colour in like buttons.
 	private final MaterialLikeRepository likes;
 	private final MaterialSearch search;
+	private final DocumentStorage storage;
 
 	public MaterialService(MaterialRepository materials, TopicRepository topics, ExamRepository exams,
 			UserRepository users, ArticleHtmlSanitizer sanitizer, MaterialLikeRepository likes,
-			MaterialSearch search) {
+			MaterialSearch search, DocumentStorage storage) {
 		this.materials = materials;
 		this.topics = topics;
 		this.exams = exams;
@@ -69,6 +72,7 @@ public class MaterialService {
 		this.sanitizer = sanitizer;
 		this.likes = likes;
 		this.search = search;
+		this.storage = storage;
 	}
 
 	// ----- reads -------------------------------------------------------------
@@ -178,6 +182,83 @@ public class MaterialService {
 
 		applyTags(video, request.topicIds(), request.examIds());
 		return toDetail(materials.save(video), false);
+	}
+
+	/**
+	 * Stores the file, then the row.
+	 *
+	 * <p>That order matters. If the write to the object store fails the transaction
+	 * rolls back and nothing is left behind; the reverse order can commit a row
+	 * pointing at a file that was never written, which then 404s on download with
+	 * no way to tell it apart from a genuine loss.
+	 */
+	@Transactional
+	public MaterialDetail createDocument(DocumentRequest request, byte[] content,
+			String uploadedName, Long authorId) {
+
+		if (content == null || content.length == 0) {
+			throw new BadRequestException("Choose a PDF to upload.");
+		}
+		if (content.length > PdfFiles.MAX_BYTES) {
+			throw new BadRequestException(
+					"That file is %.1f MB. The limit is %d MB."
+							.formatted(content.length / 1048576.0, PdfFiles.MAX_BYTES / 1048576));
+		}
+		// Checked against the leading bytes, not the extension or the declared
+		// content type, both of which the uploader controls.
+		if (!PdfFiles.looksLikePdf(content)) {
+			throw new BadRequestException("That file is not a PDF.");
+		}
+
+		String slug = Slugs.uniqueFrom(request.title(), materials::existsBySlug);
+		String key = PdfFiles.storageKey(request.paperYear(), slug);
+		storage.store(key, content, "application/pdf");
+
+		Document document = new Document(
+				request.title().trim(),
+				slug,
+				request.summary(),
+				request.thumbnailUrl(),
+				request.difficulty(),
+				author(authorId),
+				key,
+				PdfFiles.safeFileName(uploadedName),
+				"application/pdf",
+				content.length,
+				null,
+				request.paperYear());
+
+		applyTags(document, request.topicIds(), request.examIds());
+		return toDetail(materials.save(document), false);
+	}
+
+	/**
+	 * Where the browser should go to get the bytes.
+	 *
+	 * <p>Empty when the store cannot sign URLs, and the caller streams instead.
+	 */
+	@Transactional(readOnly = true)
+	public DownloadTarget downloadTarget(String slug) {
+		Material material = materials.findBySlug(slug)
+				.orElseThrow(() -> new NotFoundException("No such material."));
+
+		if (!(material instanceof Document document)) {
+			throw new BadRequestException("That material is not a downloadable file.");
+		}
+		if (!document.isPublished()) {
+			// Same message as a missing row: whether an unpublished paper exists is
+			// not something an anonymous caller should be able to probe for.
+			throw new NotFoundException("No such material.");
+		}
+
+		return new DownloadTarget(
+				document.getStorageKey(),
+				document.getOriginalName(),
+				storage.signedUrl(document.getStorageKey(), document.getOriginalName()).orElse(null));
+	}
+
+	/** Either a signed URL to redirect to, or a key to stream. */
+	public record DownloadTarget(String storageKey, String fileName, java.net.URI signedUrl) {
 	}
 
 	@Transactional
@@ -335,6 +416,10 @@ public class MaterialService {
 		Integer readingMinutes = null;
 		String youtubeId = null;
 		Integer durationSeconds = null;
+		String fileName = null;
+		Long fileSizeBytes = null;
+		Integer pageCount = null;
+		Integer paperYear = null;
 
 		if (material instanceof Article article) {
 			bodyHtml = article.getBodyHtml();
@@ -343,6 +428,12 @@ public class MaterialService {
 		else if (material instanceof Video video) {
 			youtubeId = video.getYoutubeId();
 			durationSeconds = video.getDurationSeconds();
+		}
+		else if (material instanceof Document document) {
+			fileName = document.getOriginalName();
+			fileSizeBytes = document.getSizeBytes();
+			pageCount = document.getPageCount();
+			paperYear = document.getPaperYear();
 		}
 
 		return new MaterialDetail(
@@ -370,6 +461,10 @@ public class MaterialService {
 				readingMinutes,
 				youtubeId,
 				durationSeconds,
+				fileName,
+				fileSizeBytes,
+				pageCount,
+				paperYear,
 				likedByMe);
 	}
 
